@@ -1,0 +1,6 @@
+/home/lichengpeng/local/cmake/bin/cmake -DCMAKE_BUILD_TYPE=Debug -DCMAKE_MAKE_PROGRAM=/bin/make -DLLVM_HOME_PATH=/home/lichengpeng/local/llvm -G "CodeBlocks - Unix Makefiles" /home/lichengpeng/toy/UnitTest
+-- Found LLVM 3.6.2
+-- Using LLVMConfig.cmake in: /home/lichengpeng/local/llvm/share/llvm/cmake
+-- Configuring done
+-- Generating done
+-- Build files have been written to: /home/lichengpeng/toy/UnitTest/cmake-build-debug
