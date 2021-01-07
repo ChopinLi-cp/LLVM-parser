@@ -27,6 +27,7 @@
 #include "llvm/IR/ValueSymbolTable.h"
 
 #include <llvm/IR/GetElementPtrTypeIterator.h>
+#include <llvm/IR/Function.h>
 #include <llvm/ADT/ArrayRef.h>
 
 #include "llvmir-emul.h"
@@ -916,7 +917,7 @@ GenericValue executeGEPOperation(
 
     for (; I != E; ++I)
     {
-        if (StructType *STy = NULL) //****I.getStructTypeOrNull()
+        if (StructType *STy = NULL) //**** I.getStructTypeOrNull()
         {
             const StructLayout *SLO = DL->getStructLayout(STy); // **** change . to ->
 
@@ -2316,6 +2317,1087 @@ LocalExecutionContext &LocalExecutionContext::operator=(LocalExecutionContext &&
 
 llvm::Module *LocalExecutionContext::getModule() const {
     return curFunction->getParent();
+}
+
+
+//
+//=============================================================================
+// LlvmIrEmulator
+//=============================================================================
+//
+
+LlvmIrEmulator::LlvmIrEmulator(llvm::Module* m) :
+        _module(m),
+        _globalEc(_module)
+{
+    for (GlobalVariable& gv : _module->globals())
+    {
+        auto val = getConstantValue(gv.getInitializer(), _module);
+        setGlobalVariableValue(&gv, val);
+    }
+
+    IL = new IntrinsicLowering(*(_module->getDataLayout())); // **** add *
+}
+
+LlvmIrEmulator::~LlvmIrEmulator()
+{
+    delete IL;
+}
+
+llvm::GenericValue LlvmIrEmulator::runFunction(
+        llvm::Function* f,
+        const llvm::ArrayRef<llvm::GenericValue> argVals)
+{
+    assert(_module == f->getParent());
+
+    const size_t ac = f->getFunctionType()->getNumParams();
+    ArrayRef<GenericValue> aargs = argVals.slice(
+            0,
+            std::min(argVals.size(), ac));
+
+    callFunction(f, aargs);
+
+    run();
+
+    return _exitValue;
+}
+
+/**
+* Right now, this can not handle variadic functions. We probably will not
+* need them anyway, but if we did, it is handled in the LLVM interpreter.
+*/
+void LlvmIrEmulator::callFunction(
+        llvm::Function* f,
+        llvm::ArrayRef<llvm::GenericValue> argVals)
+{
+    _ecStack.emplace_back();
+    auto& ec = _ecStack.back();
+    ec.curFunction = f;
+
+    if (f->isDeclaration())
+    {
+        assert(false && "external call unhandled");
+        return;
+    }
+
+    ec.curBB = &f->front();
+    ec.curInst = ec.curBB->begin();
+
+    unsigned i = 0;
+    for (auto ai = f->arg_begin(), e = f->arg_end(); ai != e; ++ai, ++i)
+    {
+        _globalEc.setValue(&*ai, argVals[i]);
+    }
+}
+
+void LlvmIrEmulator::run()
+{
+    while (!_ecStack.empty())
+    {
+        auto& ec = _ecStack.back();
+        if (ec.curInst == ec.curBB->end())
+        {
+            break;
+        }
+        Instruction& i = *ec.curInst++;
+
+        logInstruction(&i);
+        visit(i);
+    }
+}
+
+void LlvmIrEmulator::logInstruction(llvm::Instruction* i)
+{
+    _visitedInsns.push_back(i);
+    if (_visitedBbs.empty() || i->getParent() != _visitedBbs.back())
+    {
+        _visitedBbs.push_back(i->getParent());
+    }
+}
+
+const std::list<llvm::Instruction*>& LlvmIrEmulator::getVisitedInstructions() const
+{
+    return _visitedInsns;
+}
+
+const std::list<llvm::BasicBlock*>& LlvmIrEmulator::getVisitedBasicBlocks() const
+{
+    return _visitedBbs;
+}
+
+bool LlvmIrEmulator::wasInstructionVisited(llvm::Instruction* i) const
+{
+    for (auto* vi : getVisitedInstructions())
+    {
+        if (vi == i)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool LlvmIrEmulator::wasBasicBlockVisited(llvm::BasicBlock* bb) const
+{
+    for (auto* vbb : getVisitedBasicBlocks())
+    {
+        if (vbb == bb)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+llvm::GenericValue LlvmIrEmulator::getExitValue() const
+{
+    return _exitValue;
+}
+
+const std::list<LlvmIrEmulator::CallEntry>& LlvmIrEmulator::getCallEntries() const
+{
+    return _calls;
+}
+
+std::list<llvm::Value*> LlvmIrEmulator::getCalledValues() const
+{
+    std::list<llvm::Value*> ret;
+    for (auto& ce : _calls)
+    {
+        ret.push_back(ce.calledValue);
+    }
+    return ret;
+}
+
+std::set<llvm::Value*> LlvmIrEmulator::getCalledValuesSet() const
+{
+    std::set<llvm::Value*> ret;
+    for (auto& ce : _calls)
+    {
+        ret.insert(ce.calledValue);
+    }
+    return ret;
+}
+
+/**
+* @return @c True if value @a v is called at least once.
+*/
+bool LlvmIrEmulator::wasValueCalled(llvm::Value* v) const
+{
+    for (auto& ce : _calls)
+    {
+        if (ce.calledValue == v)
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+* @return Pointer to @c n-th call entry calling @c v value, or @c nullptr if
+*         such entry does not exist.
+*/
+const LlvmIrEmulator::CallEntry* LlvmIrEmulator::getCallEntry(
+        llvm::Value* v,
+        unsigned n) const
+{
+    unsigned cntr = 0;
+    for (auto& ce : _calls)
+    {
+        if (ce.calledValue == v)
+        {
+            if (cntr == n)
+            {
+                return &ce;
+            }
+            else
+            {
+                ++cntr;
+            }
+        }
+    }
+
+    return nullptr;
+}
+
+bool LlvmIrEmulator::wasGlobalVariableLoaded(llvm::GlobalVariable* gv)
+{
+    auto& c = _globalEc.globalsLoads;
+    return std::find(c.begin(), c.end(), gv) != c.end();
+}
+
+bool LlvmIrEmulator::wasGlobalVariableStored(llvm::GlobalVariable* gv)
+{
+    auto& c = _globalEc.globalsStores;
+    return std::find(c.begin(), c.end(), gv) != c.end();
+}
+
+std::list<llvm::GlobalVariable*> LlvmIrEmulator::getLoadedGlobalVariables()
+{
+    return _globalEc.globalsLoads;
+}
+
+std::set<llvm::GlobalVariable*> LlvmIrEmulator::getLoadedGlobalVariablesSet()
+{
+    auto& l = _globalEc.globalsLoads;
+    return std::set<GlobalVariable*>(l.begin(), l.end());
+}
+
+std::list<llvm::GlobalVariable*> LlvmIrEmulator::getStoredGlobalVariables()
+{
+    return _globalEc.globalsStores;
+}
+
+std::set<llvm::GlobalVariable*> LlvmIrEmulator::getStoredGlobalVariablesSet()
+{
+    auto& l = _globalEc.globalsStores;
+    return std::set<GlobalVariable*>(l.begin(), l.end());
+}
+
+llvm::GenericValue LlvmIrEmulator::getGlobalVariableValue(
+        llvm::GlobalVariable* gv)
+{
+    return _globalEc.getGlobal(gv, false);
+}
+
+void LlvmIrEmulator::setGlobalVariableValue(
+        llvm::GlobalVariable* gv,
+        llvm::GenericValue val)
+{
+    _globalEc.setGlobal(gv, val, false);
+}
+
+bool LlvmIrEmulator::wasMemoryLoaded(uint64_t addr)
+{
+    auto& c = _globalEc.memoryLoads;
+    return std::find(c.begin(), c.end(), addr) != c.end();
+}
+
+bool LlvmIrEmulator::wasMemoryStored(uint64_t addr)
+{
+    auto& c = _globalEc.memoryStores;
+    return std::find(c.begin(), c.end(), addr) != c.end();
+}
+
+std::list<uint64_t> LlvmIrEmulator::getLoadedMemory()
+{
+    return _globalEc.memoryLoads;
+}
+
+std::set<uint64_t> LlvmIrEmulator::getLoadedMemorySet()
+{
+    auto& l = _globalEc.memoryLoads;
+    return std::set<uint64_t>(l.begin(), l.end());
+}
+
+std::list<uint64_t> LlvmIrEmulator::getStoredMemory()
+{
+    return _globalEc.memoryStores;
+}
+
+std::set<uint64_t> LlvmIrEmulator::getStoredMemorySet()
+{
+    auto& l = _globalEc.memoryStores;
+    return std::set<uint64_t>(l.begin(), l.end());
+}
+
+llvm::GenericValue LlvmIrEmulator::getMemoryValue(uint64_t addr)
+{
+    return _globalEc.getMemory(addr, false);
+}
+
+void LlvmIrEmulator::setMemoryValue(uint64_t addr, llvm::GenericValue val)
+{
+    _globalEc.setMemory(addr, val, false);
+}
+
+/**
+* Get generic value for the passed LLVM value @a val.
+* If @c val is a global variable, result of @c getGlobalVariableValue() is
+* returned.
+* Otherwise, LLVM value to generic value map in global context is used.
+*/
+llvm::GenericValue LlvmIrEmulator::getValueValue(llvm::Value* val)
+{
+    if (auto* gv = dyn_cast<GlobalVariable>(val))
+    {
+        return getGlobalVariableValue(gv);
+    }
+    else
+    {
+        return _globalEc.values[val];
+    }
+}
+
+//
+//=============================================================================
+// Terminator Instruction Implementations
+//=============================================================================
+//
+
+void LlvmIrEmulator::popStackAndReturnValueToCaller( // &&&&
+        llvm::Type* retT,
+        llvm::GenericValue res)
+{
+    _ecStackRetired.emplace_back(_ecStack.back());
+    _ecStack.pop_back();
+
+    // Finished main. Put result into exit code...
+    //
+    if (_ecStack.empty())
+    {
+        if (retT && !retT->isVoidTy())
+        {
+            _exitValue = res;
+        }
+        else
+        {
+            // Matula: This memset is ok.
+            memset(&_exitValue.Untyped, 0, sizeof(_exitValue.Untyped));
+        }
+    }
+        // If we have a previous stack frame, and we have a previous call,
+        // fill in the return value...
+        //
+    else
+    {
+        LocalExecutionContext& callingEc = _ecStack.back();
+        if (Instruction* I = callingEc.caller.getInstruction())
+        {
+            // Save result...
+            if (!callingEc.caller.getType()->isVoidTy())
+            {
+                _globalEc.setValue(I, res);
+            }
+            if (InvokeInst* II = dyn_cast<InvokeInst>(I))
+            {
+                switchToNewBasicBlock(II->getNormalDest (), callingEc, _globalEc);
+            }
+            // We returned from the call...
+            callingEc.caller = CallSite();
+        }
+    }
+}
+
+void LlvmIrEmulator::visitReturnInst(llvm::ReturnInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    Type* retTy = Type::getVoidTy(I.getContext());
+    GenericValue res;
+
+    // Save away the return value... (if we are not 'ret void')
+    if (I.getNumOperands())
+    {
+        retTy = I.getReturnValue()->getType();
+        res = _globalEc.getOperandValue(I.getReturnValue(), ec);
+    }
+
+    popStackAndReturnValueToCaller(retTy, res);
+}
+
+void LlvmIrEmulator::visitUnreachableInst(llvm::UnreachableInst& I)
+{
+    throw LlvmIrEmulatorError("Program executed an 'unreachable' instruction!");
+}
+
+void LlvmIrEmulator::visitBranchInst(llvm::BranchInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    BasicBlock* dest;
+
+    dest = I.getSuccessor(0);
+    if (!I.isUnconditional())
+    {
+        Value* cond = I.getCondition();
+        if (_globalEc.getOperandValue(cond, ec).IntVal == false)
+        {
+            dest = I.getSuccessor(1);
+        }
+    }
+    switchToNewBasicBlock(dest, ec, _globalEc);
+}
+
+void LlvmIrEmulator::visitSwitchInst(llvm::SwitchInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    Value* cond = I.getCondition();
+    Type* elTy = cond->getType();
+    GenericValue condVal = _globalEc.getOperandValue(cond, ec);
+
+    // Check to see if any of the cases match...
+    BasicBlock *dest = nullptr;
+    for (auto Case : I.cases())
+    {
+        GenericValue caseVal = _globalEc.getOperandValue(Case.getCaseValue(), ec);
+        if (executeICMP_EQ(condVal, caseVal, elTy).IntVal != 0)
+        {
+            dest = cast<BasicBlock>(Case.getCaseSuccessor());
+            break;
+        }
+    }
+    if (!dest)
+    {
+        dest = I.getDefaultDest();   // No cases matched: use default
+    }
+    switchToNewBasicBlock(dest, ec, _globalEc);
+}
+
+void LlvmIrEmulator::visitIndirectBrInst(llvm::IndirectBrInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    void* dest = GVTOP(_globalEc.getOperandValue(I.getAddress(), ec));
+    switchToNewBasicBlock(reinterpret_cast<BasicBlock*>(dest), ec, _globalEc);
+}
+
+//
+//=============================================================================
+// Binary Instruction Implementations
+//=============================================================================
+//
+
+void LlvmIrEmulator::visitBinaryOperator(llvm::BinaryOperator& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    Type* ty = I.getOperand(0)->getType();
+    GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
+    GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+    GenericValue res;
+
+    // First process vector operation
+    if (ty->isVectorTy())
+    {
+        assert(op0.AggregateVal.size() == op1.AggregateVal.size());
+        res.AggregateVal.resize(op0.AggregateVal.size());
+
+        // Macros to execute binary operation 'OP' over integer vectors
+        #define INTEGER_VECTOR_OPERATION(OP)                                   \
+        for (unsigned i = 0; i < res.AggregateVal.size(); ++i)             \
+            res.AggregateVal[i].IntVal =                                   \
+            op0.AggregateVal[i].IntVal OP op1.AggregateVal[i].IntVal;
+
+        // Additional macros to execute binary operations udiv/sdiv/urem/srem since
+        // they have different notation.
+        #define INTEGER_VECTOR_FUNCTION(OP)                                    \
+        for (unsigned i = 0; i < res.AggregateVal.size(); ++i)             \
+            res.AggregateVal[i].IntVal =                                   \
+            op0.AggregateVal[i].IntVal.OP(op1.AggregateVal[i].IntVal);
+
+        // Macros to execute binary operation 'OP' over floating point type TY
+        // (float or double) vectors
+        #define FLOAT_VECTOR_FUNCTION(OP, TY)                                 \
+        for (unsigned i = 0; i < res.AggregateVal.size(); ++i)            \
+            res.AggregateVal[i].TY =                                      \
+            op0.AggregateVal[i].TY OP op1.AggregateVal[i].TY;
+
+        // Macros to choose appropriate TY: float or double and run operation
+        // execution
+        #define FLOAT_VECTOR_OP(OP) {                                               \
+            if (cast<VectorType>(ty)->getElementType()->isFloatTy())                \
+                FLOAT_VECTOR_FUNCTION(OP, FloatVal)                                 \
+            else                                                                    \
+            {                                                                       \
+                if (cast<VectorType>(ty)->getElementType()->isDoubleTy())           \
+                    FLOAT_VECTOR_FUNCTION(OP, DoubleVal)                            \
+                else                                                                \
+                {                                                                   \
+                    dbgs() << "Unhandled type for OP instruction: " << *ty << "\n"; \
+                    llvm_unreachable(0);                                            \
+                }                                                                   \
+            }                                                                       \
+        }
+
+        switch(I.getOpcode())
+        {
+            default:
+                dbgs() << "Don't know how to handle this binary operator!\n-->" << I;
+                llvm_unreachable(nullptr);
+                break;
+            case Instruction::Add:   INTEGER_VECTOR_OPERATION(+) break;
+            case Instruction::Sub:   INTEGER_VECTOR_OPERATION(-) break;
+            case Instruction::Mul:   INTEGER_VECTOR_OPERATION(*) break;
+            case Instruction::UDiv:  INTEGER_VECTOR_FUNCTION(udiv) break;
+            case Instruction::SDiv:  INTEGER_VECTOR_FUNCTION(sdiv) break;
+            case Instruction::URem:  INTEGER_VECTOR_FUNCTION(urem) break;
+            case Instruction::SRem:  INTEGER_VECTOR_FUNCTION(srem) break;
+            case Instruction::And:   INTEGER_VECTOR_OPERATION(&) break;
+            case Instruction::Or:    INTEGER_VECTOR_OPERATION(|) break;
+            case Instruction::Xor:   INTEGER_VECTOR_OPERATION(^) break;
+            case Instruction::FAdd:  FLOAT_VECTOR_OP(+) break;
+            case Instruction::FSub:  FLOAT_VECTOR_OP(-) break;
+            case Instruction::FMul:  FLOAT_VECTOR_OP(*) break;
+            case Instruction::FDiv:  FLOAT_VECTOR_OP(/) break;
+            case Instruction::FRem:
+            {
+                if (cast<VectorType>(ty)->getElementType()->isFloatTy())
+                {
+                    for (unsigned i = 0; i < res.AggregateVal.size(); ++i)
+                        res.AggregateVal[i].FloatVal =
+                                fmod(op0.AggregateVal[i].FloatVal, op1.AggregateVal[i].FloatVal);
+                }
+                else
+                {
+                    if (cast<VectorType>(ty)->getElementType()->isDoubleTy())
+                    {
+                        for (unsigned i = 0; i < res.AggregateVal.size(); ++i)
+                            res.AggregateVal[i].DoubleVal =
+                                    fmod(op0.AggregateVal[i].DoubleVal, op1.AggregateVal[i].DoubleVal);
+                    }
+                    else
+                    {
+                        dbgs() << "Unhandled type for Rem instruction: " << *ty << "\n";
+                        llvm_unreachable(nullptr);
+                    }
+                }
+                break;
+            }
+        }
+    }
+    else
+    {
+        // Values may not have equal bit sizes, if one was created from fp128
+        // or something like that - it would get transformed to double, that
+        // to i64, but the original integer operation would have the original
+        // large type like i128.
+        // Change bitsizes to be the same.
+        //
+        if (op0.IntVal.getBitWidth() < op1.IntVal.getBitWidth())
+        {
+            op0.IntVal = APInt(op1.IntVal.getBitWidth(), op0.IntVal.getZExtValue());
+        }
+        else if (op0.IntVal.getBitWidth() > op1.IntVal.getBitWidth())
+        {
+            op1.IntVal = APInt(op0.IntVal.getBitWidth(), op1.IntVal.getZExtValue());
+        }
+
+        switch (I.getOpcode())
+        {
+            default:
+                dbgs() << "Don't know how to handle this binary operator!\n-->" << I;
+                llvm_unreachable(nullptr);
+                break;
+            case Instruction::Add:
+                res.IntVal = op0.IntVal + op1.IntVal;
+                break;
+            case Instruction::Sub:   res.IntVal = op0.IntVal - op1.IntVal; break;
+            case Instruction::Mul:   res.IntVal = op0.IntVal * op1.IntVal; break;
+            case Instruction::FAdd:  executeFAddInst(res, op0, op1, ty); break;
+            case Instruction::FSub:  executeFSubInst(res, op0, op1, ty); break;
+            case Instruction::FMul:  executeFMulInst(res, op0, op1, ty); break;
+            case Instruction::FDiv:  executeFDivInst(res, op0, op1, ty); break;
+            case Instruction::FRem:  executeFRemInst(res, op0, op1, ty); break;
+            case Instruction::UDiv:  res.IntVal = op0.IntVal.udiv(op1.IntVal); break;
+            case Instruction::SDiv:  res.IntVal = op0.IntVal.sdiv(op1.IntVal); break;
+            case Instruction::URem:  res.IntVal = op0.IntVal.urem(op1.IntVal); break;
+            case Instruction::SRem:  res.IntVal = op0.IntVal.srem(op1.IntVal); break;
+            case Instruction::And:   res.IntVal = op0.IntVal & op1.IntVal; break;
+            case Instruction::Or:    res.IntVal = op0.IntVal | op1.IntVal; break;
+            case Instruction::Xor:   res.IntVal = op0.IntVal ^ op1.IntVal; break;
+        }
+    }
+
+    _globalEc.setValue(&I, res);
+}
+
+void LlvmIrEmulator::visitICmpInst(llvm::ICmpInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    Type* ty = I.getOperand(0)->getType();
+    GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
+    GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+    GenericValue res;
+
+    switch (I.getPredicate())
+    {
+        case ICmpInst::ICMP_EQ:  res = executeICMP_EQ(op0,  op1, ty); break;
+        case ICmpInst::ICMP_NE:  res = executeICMP_NE(op0,  op1, ty); break;
+        case ICmpInst::ICMP_ULT: res = executeICMP_ULT(op0, op1, ty); break;
+        case ICmpInst::ICMP_SLT: res = executeICMP_SLT(op0, op1, ty); break;
+        case ICmpInst::ICMP_UGT: res = executeICMP_UGT(op0, op1, ty); break;
+        case ICmpInst::ICMP_SGT: res = executeICMP_SGT(op0, op1, ty); break;
+        case ICmpInst::ICMP_ULE: res = executeICMP_ULE(op0, op1, ty); break;
+        case ICmpInst::ICMP_SLE: res = executeICMP_SLE(op0, op1, ty); break;
+        case ICmpInst::ICMP_UGE: res = executeICMP_UGE(op0, op1, ty); break;
+        case ICmpInst::ICMP_SGE: res = executeICMP_SGE(op0, op1, ty); break;
+        default:
+            dbgs() << "Don't know how to handle this ICmp predicate!\n-->" << I;
+            llvm_unreachable(nullptr);
+    }
+
+    _globalEc.setValue(&I, res);
+}
+
+void LlvmIrEmulator::visitFCmpInst(llvm::FCmpInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    Type* ty = I.getOperand(0)->getType();
+    GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
+    GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+    GenericValue res;
+
+    switch (I.getPredicate())
+    {
+        default:
+            dbgs() << "Don't know how to handle this FCmp predicate!\n-->" << I;
+            llvm_unreachable(nullptr);
+            break;
+        case FCmpInst::FCMP_FALSE: res = executeFCMP_BOOL(op0, op1, ty, false); break;
+        case FCmpInst::FCMP_TRUE:  res = executeFCMP_BOOL(op0, op1, ty, true); break;
+        case FCmpInst::FCMP_ORD:   res = executeFCMP_ORD(op0, op1, ty); break;
+        case FCmpInst::FCMP_UNO:   res = executeFCMP_UNO(op0, op1, ty); break;
+        case FCmpInst::FCMP_UEQ:   res = executeFCMP_UEQ(op0, op1, ty); break;
+        case FCmpInst::FCMP_OEQ:   res = executeFCMP_OEQ(op0, op1, ty); break;
+        case FCmpInst::FCMP_UNE:   res = executeFCMP_UNE(op0, op1, ty); break;
+        case FCmpInst::FCMP_ONE:   res = executeFCMP_ONE(op0, op1, ty); break;
+        case FCmpInst::FCMP_ULT:   res = executeFCMP_ULT(op0, op1, ty); break;
+        case FCmpInst::FCMP_OLT:   res = executeFCMP_OLT(op0, op1, ty); break;
+        case FCmpInst::FCMP_UGT:   res = executeFCMP_UGT(op0, op1, ty); break;
+        case FCmpInst::FCMP_OGT:   res = executeFCMP_OGT(op0, op1, ty); break;
+        case FCmpInst::FCMP_ULE:   res = executeFCMP_ULE(op0, op1, ty); break;
+        case FCmpInst::FCMP_OLE:   res = executeFCMP_OLE(op0, op1, ty); break;
+        case FCmpInst::FCMP_UGE:   res = executeFCMP_UGE(op0, op1, ty); break;
+        case FCmpInst::FCMP_OGE:   res = executeFCMP_OGE(op0, op1, ty); break;
+    }
+
+    _globalEc.setValue(&I, res);
+}
+
+//
+//=============================================================================
+// Ternary Instruction Implementations
+//=============================================================================
+//
+
+void LlvmIrEmulator::visitSelectInst(llvm::SelectInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    Type* ty = I.getOperand(0)->getType();
+    GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
+    GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+    GenericValue op2 = _globalEc.getOperandValue(I.getOperand(2), ec);
+    GenericValue res = executeSelectInst(op0, op1, op2, ty);
+    _globalEc.setValue(&I, res);
+}
+
+//
+//=============================================================================
+// Memory Instruction Implementations
+//=============================================================================
+//
+
+/**
+* Matula:
+* Right now, we do the same thing as LLVM's interpreter -- really
+* allocate memory and keed track of it via ExecutionContext::allocas.
+* Maybe this is not needed at all, or it would be better to solve it in a
+* different way without memory allocation.
+*/
+void LlvmIrEmulator::visitAllocaInst(llvm::AllocaInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+
+    Type* ty = I.getType()->getElementType();
+
+    unsigned elemN = _globalEc.getOperandValue(I.getOperand(0), ec).IntVal.getZExtValue();
+    unsigned tySz = static_cast<size_t>(_module->getDataLayout()->getTypeAllocSize(ty)); // ****
+
+    // Avoid malloc-ing zero bytes, use max()...
+    unsigned memToAlloc = std::max(1U, elemN * tySz);
+
+    // Allocate enough memory to hold the type...
+    void *mem = malloc(memToAlloc);
+
+    GenericValue res = PTOGV(mem);
+    assert(res.PointerVal && "Null pointer returned by malloc!");
+    _globalEc.setValue(&I, res);
+
+    if (I.getOpcode() == Instruction::Alloca)
+    {
+        _ecStack.back().allocas.add(mem);
+    }
+}
+
+void LlvmIrEmulator::visitGetElementPtrInst(llvm::GetElementPtrInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(
+            &I,
+            executeGEPOperation(
+                    I.getPointerOperand(),
+                    gep_type_begin(I),
+                    gep_type_end(I),
+                    ec,
+                    _globalEc));
+}
+
+void LlvmIrEmulator::visitLoadInst(llvm::LoadInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    GenericValue res;
+
+    if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
+    {
+        res = _globalEc.getGlobal(gv);
+    }
+    else
+    {
+        GenericValue src = _globalEc.getOperandValue(I.getPointerOperand(), ec);
+        GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(src));
+        uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
+        res = _globalEc.getMemory(ptrVal);
+    }
+
+    _globalEc.setValue(&I, res);
+}
+
+void LlvmIrEmulator::visitStoreInst(llvm::StoreInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    GenericValue val = _globalEc.getOperandValue(I.getOperand(0), ec);
+
+    if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
+    {
+        _globalEc.setGlobal(gv, val);
+    }
+    else
+    {
+        GenericValue dst = _globalEc.getOperandValue(I.getPointerOperand(), ec);
+        GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(dst));
+        uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
+        _globalEc.setMemory(ptrVal, val);
+    }
+}
+
+//
+//=============================================================================
+// Call Instruction Implementations
+//=============================================================================
+//
+
+void LlvmIrEmulator::visitCallInst(llvm::CallInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+
+    auto* cf = I.getCalledFunction();
+    if (cf && cf->isDeclaration() && cf->isIntrinsic() &&
+        !(cf->getIntrinsicID() == Intrinsic::bitreverse
+          || cf->getIntrinsicID() == Intrinsic::maxnum
+          || cf->getIntrinsicID() == Intrinsic::minnum
+          || cf->getIntrinsicID() == Intrinsic::fabs)) // can not lower those functions
+    {
+        assert(cf->getIntrinsicID() != Intrinsic::vastart
+               && cf->getIntrinsicID() != Intrinsic::vaend
+               && cf->getIntrinsicID() != Intrinsic::vacopy);
+
+        BasicBlock::iterator me(&I);
+        BasicBlock *Parent = I.getParent();
+        bool atBegin(Parent->begin() == me);
+        if (!atBegin)
+        {
+            --me;
+        }
+        IL->LowerIntrinsicCall(cast<CallInst>(&I));
+
+        // Restore the CurInst pointer to the first instruction newly inserted,
+        // if any.
+        if (atBegin)
+        {
+            ec.curInst = Parent->begin();
+        }
+        else
+        {
+            ec.curInst = me;
+            ++ec.curInst;
+        }
+
+        return;
+    }
+
+    CallEntry ce;
+    ce.calledValue = I.getCalledValue();
+
+    for (auto aIt = I.op_begin(), eIt = I.op_end(); aIt != eIt; ++aIt) // **** change arg to op
+    {
+        Value* val = *aIt;
+        ce.calledArguments.push_back(_globalEc.getOperandValue(val, ec));
+    }
+
+    _calls.push_back(ce);
+}
+
+void LlvmIrEmulator::visitInvokeInst(llvm::InvokeInst& I)
+{
+    assert(false && "InvokeInst not implemented.");
+    throw LlvmIrEmulatorError("InvokeInst not implemented.");
+}
+
+//
+//=============================================================================
+// Shift Instruction Implementations
+//=============================================================================
+//
+
+unsigned getShiftAmount(
+        uint64_t orgShiftAmount,
+        llvm::APInt valueToShift)
+{
+    unsigned valueWidth = valueToShift.getBitWidth();
+    if (orgShiftAmount < static_cast<uint64_t>(valueWidth))
+    {
+        return orgShiftAmount;
+    }
+    // according to the llvm documentation, if orgShiftAmount > valueWidth,
+    // the result is undfeined. but we do shift by this rule:
+    return (NextPowerOf2(valueWidth-1) - 1) & orgShiftAmount;
+}
+
+void LlvmIrEmulator::visitShl(llvm::BinaryOperator& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
+    GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+    GenericValue Dest;
+    Type* ty = I.getType();
+
+    if (ty->isVectorTy())
+    {
+        uint32_t src1Size = uint32_t(op0.AggregateVal.size());
+        assert(src1Size == op1.AggregateVal.size());
+        for (unsigned i = 0; i < src1Size; i++)
+        {
+            GenericValue Result;
+            uint64_t shiftAmount = op1.AggregateVal[i].IntVal.getZExtValue();
+            llvm::APInt valueToShift = op0.AggregateVal[i].IntVal;
+            Result.IntVal = valueToShift.shl(getShiftAmount(shiftAmount, valueToShift));
+            Dest.AggregateVal.push_back(Result);
+        }
+    }
+    else
+    {
+        // scalar
+        uint64_t shiftAmount = op1.IntVal.getZExtValue();
+        llvm::APInt valueToShift = op0.IntVal;
+        Dest.IntVal = valueToShift.shl(getShiftAmount(shiftAmount, valueToShift));
+    }
+
+    _globalEc.setValue(&I, Dest);
+}
+
+void LlvmIrEmulator::visitLShr(llvm::BinaryOperator& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
+    GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+    GenericValue Dest;
+    Type* ty = I.getType();
+
+    if (ty->isVectorTy())
+    {
+        uint32_t src1Size = uint32_t(op0.AggregateVal.size());
+        assert(src1Size == op1.AggregateVal.size());
+        for (unsigned i = 0; i < src1Size; i++)
+        {
+            GenericValue Result;
+            uint64_t shiftAmount = op1.AggregateVal[i].IntVal.getZExtValue();
+            llvm::APInt valueToShift = op0.AggregateVal[i].IntVal;
+            Result.IntVal = valueToShift.lshr(getShiftAmount(shiftAmount, valueToShift));
+            Dest.AggregateVal.push_back(Result);
+        }
+    }
+    else
+    {
+        // scalar
+        uint64_t shiftAmount = op1.IntVal.getZExtValue();
+        llvm::APInt valueToShift = op0.IntVal;
+        Dest.IntVal = valueToShift.lshr(getShiftAmount(shiftAmount, valueToShift));
+    }
+
+    _globalEc.setValue(&I, Dest);
+}
+
+void LlvmIrEmulator::visitAShr(llvm::BinaryOperator& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
+    GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+    GenericValue Dest;
+    Type* ty = I.getType();
+
+    if (ty->isVectorTy())
+    {
+        size_t src1Size = op0.AggregateVal.size();
+        assert(src1Size == op1.AggregateVal.size());
+        for (unsigned i = 0; i < src1Size; i++)
+        {
+            GenericValue Result;
+            uint64_t shiftAmount = op1.AggregateVal[i].IntVal.getZExtValue();
+            llvm::APInt valueToShift = op0.AggregateVal[i].IntVal;
+            Result.IntVal = valueToShift.ashr(getShiftAmount(shiftAmount, valueToShift));
+            Dest.AggregateVal.push_back(Result);
+        }
+    }
+    else
+    {
+        // scalar
+        uint64_t shiftAmount = op1.IntVal.getZExtValue();
+        llvm::APInt valueToShift = op0.IntVal;
+        Dest.IntVal = valueToShift.ashr(getShiftAmount(shiftAmount, valueToShift));
+    }
+
+    _globalEc.setValue(&I, Dest);
+}
+
+//
+//=============================================================================
+// Conversion Instruction Implementations
+//=============================================================================
+//
+
+void LlvmIrEmulator::visitTruncInst(llvm::TruncInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeTruncInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitSExtInst(llvm::SExtInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeSExtInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitZExtInst(llvm::ZExtInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeZExtInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitFPTruncInst(llvm::FPTruncInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeFPTruncInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitFPExtInst(llvm::FPExtInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeFPExtInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitUIToFPInst(llvm::UIToFPInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeUIToFPInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitSIToFPInst(llvm::SIToFPInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeSIToFPInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitFPToUIInst(llvm::FPToUIInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeFPToUIInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitFPToSIInst(llvm::FPToSIInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeFPToSIInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitPtrToIntInst(llvm::PtrToIntInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executePtrToIntInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitIntToPtrInst(llvm::IntToPtrInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeIntToPtrInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+void LlvmIrEmulator::visitBitCastInst(llvm::BitCastInst& I)
+{
+    LocalExecutionContext& ec = _ecStack.back();
+    _globalEc.setValue(&I, executeBitCastInst(I.getOperand(0), I.getType(), ec, _globalEc));
+}
+
+//
+//=============================================================================
+// Miscellaneous Instruction Implementations
+//=============================================================================
+//
+
+void LlvmIrEmulator::visitVAArgInst(llvm::VAArgInst& I)
+{
+    assert(false && "Handling of VAArgInst is not implemented");
+    throw LlvmIrEmulatorError("Handling of VAArgInst is not implemented");
+}
+
+/**
+* This is not really getting the value. It just sets ExtractValueInst's result
+* to uninitialized GenericValue.
+*/
+void LlvmIrEmulator::visitExtractElementInst(llvm::ExtractElementInst& I)
+{
+    GenericValue dest;
+    _globalEc.setValue(&I, dest);
+}
+
+void LlvmIrEmulator::visitInsertElementInst(llvm::InsertElementInst& I)
+{
+    assert(false && "Handling of InsertElementInst is not implemented");
+    throw LlvmIrEmulatorError("Handling of InsertElementInst is not implemented");
+}
+
+void LlvmIrEmulator::visitShuffleVectorInst(llvm::ShuffleVectorInst& I)
+{
+    assert(false && "Handling of ShuffleVectorInst is not implemented");
+    throw LlvmIrEmulatorError("Handling of ShuffleVectorInst is not implemented");
+}
+
+/**
+* This is not really getting the value. It just sets ExtractValueInst's result
+* to uninitialized GenericValue.
+*/
+void LlvmIrEmulator::visitExtractValueInst(llvm::ExtractValueInst& I)
+{
+    GenericValue dest;
+    _globalEc.setValue(&I, dest);
+}
+
+void LlvmIrEmulator::visitInsertValueInst(llvm::InsertValueInst& I)
+{
+    assert(false && "Handling of InsertValueInst is not implemented");
+    throw LlvmIrEmulatorError("Handling of InsertValueInst is not implemented");
+}
+
+void LlvmIrEmulator::visitPHINode(llvm::PHINode& PN)
+{
+    throw LlvmIrEmulatorError("PHI nodes already handled!");
+}
+
+//
+//=============================================================================
+// Super Instruction Implementations
+//=============================================================================
+//
+
+/**
+* When visitor does not find visit method for a particular child class,
+* it uses visit method for the parent class. This is a visit for the super
+* parent class for all LLVM instructions. If visitor gets here, it means
+* the current instruction is not handled -- it should have its own specialized
+* visit method, no instruction should be handled by this super visit method.
+*/
+void LlvmIrEmulator::visitInstruction(llvm::Instruction& I)
+{
+    throw LlvmIrEmulatorError(
+            "Unhandled instruction visited: " + llvmObjToString(&I));
 }
 
     }
