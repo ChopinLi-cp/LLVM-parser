@@ -3610,6 +3610,48 @@ int main()
 //
 //    GenericValue dest = retdec::llvmir_emul::executeSExtInst(CT, DstTy, *SF, *GC);
 //    cout << dest.AggregateVal[1].IntVal.toString(2, 0) << endl;
+//
+//==========================================================
+//
+//==========================================================
+    parseInput(R"(
+		define i32 @f1() {
+			%a = add i32 1, 2
+			%b = add i32 %a, 3
+			%c = mul i32 %a, %b
+			ret i32 %c
+		}
+		define i32 @f2() {
+			%d = add i32 1, 2
+			ret i32 %d
+		}
+	)");
+    auto* f1 = getFunctionByName("f1");
+    auto* f2 = getFunctionByName("f2");
+    auto* bb1 = &f1->front();
+    auto* bb2 = &f2->front();
+    auto* a = getInstructionByName("a");
+    auto* b = getInstructionByName("b");
+    auto* c = getInstructionByName("c");
+    auto* r = getNthInstruction<ReturnInst>();
+    auto* d = getInstructionByName("d");
 
+    LlvmIrEmulator emu(module.get());
+    emu.runFunction(f1);
+
+    auto vis = emu.getVisitedInstructions();
+    auto vbs = emu.getVisitedBasicBlocks();
+
+    std::list<Instruction*> exVis = {a, b, c, r};
+    EXPECT_EQ(exVis, vis);
+    std::list<BasicBlock*> exVbs = {bb1};
+    EXPECT_EQ(exVbs, vbs);
+    EXPECT_TRUE(emu.wasInstructionVisited(a));
+    EXPECT_TRUE(emu.wasInstructionVisited(b));
+    EXPECT_TRUE(emu.wasInstructionVisited(c));
+    EXPECT_TRUE(emu.wasInstructionVisited(r));
+    EXPECT_TRUE(emu.wasBasicBlockVisited(bb1));
+    EXPECT_FALSE(emu.wasInstructionVisited(d));
+    EXPECT_FALSE(emu.wasBasicBlockVisited(bb2));
     return 0;
 }
