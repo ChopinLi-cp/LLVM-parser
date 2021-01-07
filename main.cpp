@@ -3081,8 +3081,8 @@ void LlvmIrEmulator::visitCallInst(llvm::CallInst& I)
 
     auto* cf = I.getCalledFunction();
     if (cf && cf->isDeclaration() && cf->isIntrinsic() &&
-        !(cf->getIntrinsicID() == Intrinsic::bitreverse
-          || cf->getIntrinsicID() == Intrinsic::maxnum
+        !( // **** cf->getIntrinsicID() == Intrinsic::bitreverse ||
+           cf->getIntrinsicID() == Intrinsic::maxnum
           || cf->getIntrinsicID() == Intrinsic::minnum
           || cf->getIntrinsicID() == Intrinsic::fabs)) // can not lower those functions
     {
@@ -3578,12 +3578,12 @@ int main()
 // Conversion Instruction Implementations
 //===========================================
 
-    LLVMContext Context;
-
-    std::unique_ptr<Module> Owner = make_unique<Module>("main", Context);
-
-    IRBuilder<> builder(Context);
-    Module *mod = Owner.get();
+//    LLVMContext Context;
+//
+//    std::unique_ptr<Module> Owner = make_unique<Module>("main", Context);
+//
+//    IRBuilder<> builder(Context);
+//    Module *mod = Owner.get();
 
 //    APInt *v = new APInt(64, 16687987979342709456);
 //    llvm::Constant * CT = llvm::Constant::getIntegerValue(Type::getInt32Ty(Context), *v);
@@ -3596,19 +3596,20 @@ int main()
 //    GenericValue dest = retdec::llvmir_emul::executeTruncInst(CT, DstTy, *SF, *GC);
 //    cout << dest.IntVal.toString(10, 0) << endl;
 
-    APInt *v1 = new APInt(32, 6);
-    APInt *v2 = new APInt(32, 16);
-    APInt *v = new APInt[2];
-    v[0] = *v1;
-    v[1] = *v2;
-    Type * Ty = Type::getInt32Ty(Context);
-    VectorType* VTy = VectorType::get(Ty, 2);
-    llvm::Constant * CT = llvm::Constant::getIntegerValue(VTy, *v);
-    Type *DstTy = Type::getInt64Ty(Context);
-    retdec::llvmir_emul::LocalExecutionContext *SF = new retdec::llvmir_emul::LocalExecutionContext();
-    retdec::llvmir_emul::GlobalExecutionContext *GC = new retdec::llvmir_emul::GlobalExecutionContext(mod);
+//    APInt *v1 = new APInt(32, 6);
+//    APInt *v2 = new APInt(32, 16);
+//    APInt *v = new APInt[2];
+//    v[0] = *v1;
+//    v[1] = *v2;
+//    Type * Ty = Type::getInt32Ty(Context);
+//    VectorType* VTy = VectorType::get(Ty, 2);
+//    llvm::Constant * CT = llvm::Constant::getIntegerValue(VTy, *v);
+//    Type *DstTy = Type::getInt64Ty(Context);
+//    retdec::llvmir_emul::LocalExecutionContext *SF = new retdec::llvmir_emul::LocalExecutionContext();
+//    retdec::llvmir_emul::GlobalExecutionContext *GC = new retdec::llvmir_emul::GlobalExecutionContext(mod);
+//
+//    GenericValue dest = retdec::llvmir_emul::executeSExtInst(CT, DstTy, *SF, *GC);
+//    cout << dest.AggregateVal[1].IntVal.toString(2, 0) << endl;
 
-    GenericValue dest = retdec::llvmir_emul::executeSExtInst(CT, DstTy, *SF, *GC);
-    cout << dest.AggregateVal[1].IntVal.toString(2, 0) << endl;
     return 0;
 }
