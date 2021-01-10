@@ -1,1 +1,2 @@
-"# LLVM-parser" 
+"# LLVM-parser"
+[https://fossies.org/diffs/mono-llvm/3.6.0+mono201805011452_vs_6.0+mono20180728010642/lib/Analysis/ConstantFolding.cpp-diff.html](https://fossies.org/diffs/mono-llvm/3.6.0+mono201805011452_vs_6.0+mono20180728010642/lib/Analysis/ConstantFolding.cpp-diff.html)  This file is about some changes in llvm3.6.0
