@@ -612,6 +612,12 @@ llvm/Support/Compiler.h
 llvm/Support/Options.h
 /home/lichengpeng/local/llvm/include/llvm/IR/llvm/Support/Options.h
 
+/home/lichengpeng/local/llvm/include/llvm/IR/LegacyPassManager.h
+llvm/Pass.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/Pass.h
+llvm/Support/CBindingWrapping.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/Support/CBindingWrapping.h
+
 /home/lichengpeng/local/llvm/include/llvm/IR/Metadata.def
 
 /home/lichengpeng/local/llvm/include/llvm/IR/Metadata.h
@@ -685,6 +691,36 @@ llvm/IR/Instruction.h
 /home/lichengpeng/local/llvm/include/llvm/IR/llvm/IR/Instruction.h
 llvm/IR/Type.h
 /home/lichengpeng/local/llvm/include/llvm/IR/llvm/IR/Type.h
+
+/home/lichengpeng/local/llvm/include/llvm/IR/PassManager.h
+llvm/ADT/DenseMap.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/ADT/DenseMap.h
+llvm/ADT/STLExtras.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/ADT/STLExtras.h
+llvm/ADT/SmallPtrSet.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/ADT/SmallPtrSet.h
+llvm/IR/Function.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/IR/Function.h
+llvm/IR/Module.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/IR/Module.h
+llvm/IR/PassManagerInternal.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/IR/PassManagerInternal.h
+llvm/Support/CommandLine.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/Support/CommandLine.h
+llvm/Support/Debug.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/Support/Debug.h
+llvm/Support/type_traits.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/Support/type_traits.h
+list
+-
+memory
+-
+vector
+-
+
+/home/lichengpeng/local/llvm/include/llvm/IR/PassManagerInternal.h
+llvm/ADT/StringRef.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/ADT/StringRef.h
 
 /home/lichengpeng/local/llvm/include/llvm/IR/SymbolTableListTraits.h
 llvm/ADT/ilist.h
@@ -765,6 +801,18 @@ llvm/IR/Value.h
 /home/lichengpeng/local/llvm/include/llvm/IR/llvm/IR/Value.h
 llvm/Support/DataTypes.h
 /home/lichengpeng/local/llvm/include/llvm/IR/llvm/Support/DataTypes.h
+
+/home/lichengpeng/local/llvm/include/llvm/IR/Verifier.h
+llvm/ADT/StringRef.h
+/home/lichengpeng/local/llvm/include/llvm/IR/llvm/ADT/StringRef.h
+string
+-
+
+/home/lichengpeng/local/llvm/include/llvm/IRReader/IRReader.h
+llvm/Support/MemoryBuffer.h
+/home/lichengpeng/local/llvm/include/llvm/IRReader/llvm/Support/MemoryBuffer.h
+string
+-
 
 /home/lichengpeng/local/llvm/include/llvm/InitializePasses.h
 
@@ -1196,6 +1244,30 @@ llvm/IR/Module.h
 exceptions.h
 /home/lichengpeng/toy/UnitTest/exceptions.h
 
+/home/lichengpeng/toy/UnitTest/llvmir_tests.h
+gtest/gtest.h
+-
+llvm/IR/IRBuilder.h
+-
+llvm/IR/LegacyPassManager.h
+-
+llvm/IR/Module.h
+-
+llvm/IR/PassManager.h
+-
+llvm/IR/Verifier.h
+-
+llvm/IRReader/IRReader.h
+-
+llvm/Support/MemoryBuffer.h
+-
+llvm/Support/SourceMgr.h
+-
+llvm/Support/raw_ostream.h
+-
+retdec/utils/string.h
+/home/lichengpeng/toy/UnitTest/retdec/utils/string.h
+
 /home/lichengpeng/toy/UnitTest/main.cpp
 iostream
 -
@@ -1255,6 +1327,8 @@ llvm/IR/Function.h
 -
 llvm/ADT/ArrayRef.h
 -
+llvmir_tests.h
+/home/lichengpeng/toy/UnitTest/llvmir_tests.h
 llvmir-emul.h
 /home/lichengpeng/toy/UnitTest/llvmir-emul.h
 

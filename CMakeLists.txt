@@ -1,24 +1,24 @@
 #cmake_minimum_required(VERSION 3.10)
 #
-#add_library(llvmir-emul STATIC
-#        llvmir_emul.cpp
+#add_library(UnitTest STATIC
+#        main.cpp
 #        )
 ##add_library(llvmir-emul ALIAS llvmir-emul)
 #
-#target_compile_features(llvmir-emul PUBLIC cxx_std_14)
+#target_compile_features(UnitTest PUBLIC cxx_std_14)
 #
-#target_include_directories(llvmir-emul
+#target_include_directories(UnitTest
 #        PUBLIC
 #        $<BUILD_INTERFACE:${RETDEC_INCLUDE_DIR}>
 #        $<INSTALL_INTERFACE:${RETDEC_INSTALL_INCLUDE_DIR}>
 #        )
 #
-#target_link_libraries(llvmir-emul
+#target_link_libraries(UnitTest
 #        PUBLIC
 #        LLVM
 #        )
 #
-#set_target_properties(llvmir-emul
+#set_target_properties(UnitTest
 #        PROPERTIES
 #        OUTPUT_NAME "llvmir-emul"
 #        )

@@ -144,7 +144,7 @@ CMAKE_OBJCOPY:FILEPATH=/usr/bin/objcopy
 CMAKE_OBJDUMP:FILEPATH=/usr/bin/objdump
 
 //Value Computed by CMake
-CMAKE_PROJECT_NAME:STATIC=UnitTest
+CMAKE_PROJECT_NAME:STATIC=Project
 
 //Path to a program.
 CMAKE_RANLIB:FILEPATH=/usr/bin/ranlib
@@ -233,6 +233,9 @@ RETDEC_INSTALL_LIB_DIR:UNINITIALIZED=/home/lichengpeng/toy/tmp/retdec_install_li
 
 //Value Computed by CMake
 UnitTest_BINARY_DIR:STATIC=/home/lichengpeng/toy/UnitTest/cmake-build-debug
+
+//Dependencies for the target
+UnitTest_LIB_DEPENDS:STATIC=general;LLVM;
 
 //Value Computed by CMake
 UnitTest_SOURCE_DIR:STATIC=/home/lichengpeng/toy/UnitTest

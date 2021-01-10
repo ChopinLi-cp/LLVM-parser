@@ -62,12 +62,15 @@ CMakeFiles/UnitTest.dir/main.cpp.o
  /home/lichengpeng/local/llvm/include/llvm/IR/Intrinsics.gen
  /home/lichengpeng/local/llvm/include/llvm/IR/Intrinsics.h
  /home/lichengpeng/local/llvm/include/llvm/IR/LLVMContext.h
+ /home/lichengpeng/local/llvm/include/llvm/IR/LegacyPassManager.h
  /home/lichengpeng/local/llvm/include/llvm/IR/Metadata.def
  /home/lichengpeng/local/llvm/include/llvm/IR/Metadata.h
  /home/lichengpeng/local/llvm/include/llvm/IR/MetadataTracking.h
  /home/lichengpeng/local/llvm/include/llvm/IR/Module.h
  /home/lichengpeng/local/llvm/include/llvm/IR/OperandTraits.h
  /home/lichengpeng/local/llvm/include/llvm/IR/Operator.h
+ /home/lichengpeng/local/llvm/include/llvm/IR/PassManager.h
+ /home/lichengpeng/local/llvm/include/llvm/IR/PassManagerInternal.h
  /home/lichengpeng/local/llvm/include/llvm/IR/SymbolTableListTraits.h
  /home/lichengpeng/local/llvm/include/llvm/IR/TrackingMDRef.h
  /home/lichengpeng/local/llvm/include/llvm/IR/Type.h
@@ -76,6 +79,8 @@ CMakeFiles/UnitTest.dir/main.cpp.o
  /home/lichengpeng/local/llvm/include/llvm/IR/Value.h
  /home/lichengpeng/local/llvm/include/llvm/IR/ValueHandle.h
  /home/lichengpeng/local/llvm/include/llvm/IR/ValueSymbolTable.h
+ /home/lichengpeng/local/llvm/include/llvm/IR/Verifier.h
+ /home/lichengpeng/local/llvm/include/llvm/IRReader/IRReader.h
  /home/lichengpeng/local/llvm/include/llvm/InitializePasses.h
  /home/lichengpeng/local/llvm/include/llvm/Pass.h
  /home/lichengpeng/local/llvm/include/llvm/PassAnalysisSupport.h
@@ -120,4 +125,5 @@ CMakeFiles/UnitTest.dir/main.cpp.o
  /home/lichengpeng/local/llvm/include/llvm/Support/type_traits.h
  /home/lichengpeng/toy/UnitTest/exceptions.h
  /home/lichengpeng/toy/UnitTest/llvmir-emul.h
+ /home/lichengpeng/toy/UnitTest/llvmir_tests.h
  /home/lichengpeng/toy/UnitTest/main.cpp

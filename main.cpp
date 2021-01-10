@@ -29,6 +29,7 @@
 #include <llvm/IR/GetElementPtrTypeIterator.h>
 #include <llvm/IR/Function.h>
 #include <llvm/ADT/ArrayRef.h>
+//#include "llvmir_tests.h"
 
 #include "llvmir-emul.h"
 
@@ -917,7 +918,7 @@ GenericValue executeGEPOperation(
 
     for (; I != E; ++I)
     {
-        if (StructType *STy = NULL) //**** I.getStructTypeOrNull()
+        if (StructType *STy = dyn_cast<StructType>((I.operator*()))) //**** I.getStructTypeOrNull()
         {
             const StructLayout *SLO = DL->getStructLayout(STy); // **** change . to ->
 
@@ -1826,19 +1827,19 @@ llvm::GenericValue getConstantValue(const llvm::Constant* C, llvm::Module* m)
                     GV.IntVal = APIntOps::RoundFloatToAPInt(GV.FloatVal, BitWidth);
                 else if (Op0->getType()->isDoubleTy() || CE->getType()->isX86_FP80Ty())
                     GV.IntVal = APIntOps::RoundDoubleToAPInt(GV.DoubleVal, BitWidth);
-//                else if (Op0->getType()->isX86_FP80Ty())
-//                {
-//                    APFloat apf = APFloat(APFloat::x87DoubleExtended, GV.IntVal); // **** delete the first ()
-//                    uint64_t v;
-//                    bool ignored;
-//                    (void)apf.convertToInteger(
-//                            new MutableArrayRef(v),
-//                            BitWidth,
-//                            CE->getOpcode()==Instruction::FPToSI,
-//                            APFloat::rmTowardZero,
-//                            &ignored);
-//                    GV.IntVal = v; // endian?
-//                }
+                else if (Op0->getType()->isX86_FP80Ty())
+                {
+                    APFloat apf = APFloat(APFloat::x87DoubleExtended, GV.IntVal); // **** delete the first ()
+                    uint64_t v;
+                    bool ignored;
+                    (void)apf.convertToInteger(
+                            &v,// ****
+                            BitWidth,
+                            CE->getOpcode()==Instruction::FPToSI,
+                            APFloat::rmTowardZero,
+                            &ignored);
+                    GV.IntVal = v; // endian?
+                }
                 return GV;
             }
             case Instruction::PtrToInt:
@@ -3081,8 +3082,9 @@ void LlvmIrEmulator::visitCallInst(llvm::CallInst& I)
 
     auto* cf = I.getCalledFunction();
     if (cf && cf->isDeclaration() && cf->isIntrinsic() &&
-        !( // **** cf->getIntrinsicID() == Intrinsic::bitreverse ||
-           cf->getIntrinsicID() == Intrinsic::maxnum
+        !( cf->getIntrinsicID() == Intrinsic::mips_bitrev
+          || cf->getIntrinsicID() == Intrinsic::xcore_bitrev// **** ConstantInt::get(Ty->getContext(), Op->getValue().reverseBits()
+          || cf->getIntrinsicID() == Intrinsic::maxnum
           || cf->getIntrinsicID() == Intrinsic::minnum
           || cf->getIntrinsicID() == Intrinsic::fabs)) // can not lower those functions
     {
@@ -3578,12 +3580,12 @@ int main()
 // Conversion Instruction Implementations
 //===========================================
 
-//    LLVMContext Context;
-//
-//    std::unique_ptr<Module> Owner = make_unique<Module>("main", Context);
-//
-//    IRBuilder<> builder(Context);
-//    Module *mod = Owner.get();
+    LLVMContext Context;
+
+    std::unique_ptr<Module> Owner = make_unique<Module>("main", Context);
+
+    IRBuilder<> builder(Context);
+    Module *mod = Owner.get();
 
 //    APInt *v = new APInt(64, 16687987979342709456);
 //    llvm::Constant * CT = llvm::Constant::getIntegerValue(Type::getInt32Ty(Context), *v);
@@ -3596,62 +3598,63 @@ int main()
 //    GenericValue dest = retdec::llvmir_emul::executeTruncInst(CT, DstTy, *SF, *GC);
 //    cout << dest.IntVal.toString(10, 0) << endl;
 
-//    APInt *v1 = new APInt(32, 6);
-//    APInt *v2 = new APInt(32, 16);
-//    APInt *v = new APInt[2];
-//    v[0] = *v1;
-//    v[1] = *v2;
-//    Type * Ty = Type::getInt32Ty(Context);
-//    VectorType* VTy = VectorType::get(Ty, 2);
-//    llvm::Constant * CT = llvm::Constant::getIntegerValue(VTy, *v);
-//    Type *DstTy = Type::getInt64Ty(Context);
-//    retdec::llvmir_emul::LocalExecutionContext *SF = new retdec::llvmir_emul::LocalExecutionContext();
-//    retdec::llvmir_emul::GlobalExecutionContext *GC = new retdec::llvmir_emul::GlobalExecutionContext(mod);
-//
-//    GenericValue dest = retdec::llvmir_emul::executeSExtInst(CT, DstTy, *SF, *GC);
-//    cout << dest.AggregateVal[1].IntVal.toString(2, 0) << endl;
-//
-//==========================================================
+    APInt *v1 = new APInt(32, 6);
+    APInt *v2 = new APInt(32, 16);
+    APInt *v = new APInt[2];
+    v[0] = *v1;
+    v[1] = *v2;
+    Type * Ty = Type::getInt32Ty(Context);
+    VectorType* VTy = VectorType::get(Ty, 2);
+    llvm::Constant * CT = llvm::Constant::getIntegerValue(VTy, *v);
+    Type *DstTy = Type::getInt64Ty(Context);
+    retdec::llvmir_emul::LocalExecutionContext *SF = new retdec::llvmir_emul::LocalExecutionContext();
+    retdec::llvmir_emul::GlobalExecutionContext *GC = new retdec::llvmir_emul::GlobalExecutionContext(mod);
+
+    GenericValue dest = retdec::llvmir_emul::executeSExtInst(CT, DstTy, *SF, *GC);
+    cout << dest.AggregateVal[1].IntVal.toString(2, 0) << endl;
 //
 //==========================================================
-    parseInput(R"(
-		define i32 @f1() {
-			%a = add i32 1, 2
-			%b = add i32 %a, 3
-			%c = mul i32 %a, %b
-			ret i32 %c
-		}
-		define i32 @f2() {
-			%d = add i32 1, 2
-			ret i32 %d
-		}
-	)");
-    auto* f1 = getFunctionByName("f1");
-    auto* f2 = getFunctionByName("f2");
-    auto* bb1 = &f1->front();
-    auto* bb2 = &f2->front();
-    auto* a = getInstructionByName("a");
-    auto* b = getInstructionByName("b");
-    auto* c = getInstructionByName("c");
-    auto* r = getNthInstruction<ReturnInst>();
-    auto* d = getInstructionByName("d");
+//
+//==========================================================
+//    parseInput(R"(
+//		define i32 @f1() {
+//			%a = add i32 1, 2
+//			%b = add i32 %a, 3
+//			%c = mul i32 %a, %b
+//			ret i32 %c
+//		}
+//		define i32 @f2() {
+//			%d = add i32 1, 2
+//			ret i32 %d
+//		}
+//	)");
+//    auto* f1 = getFunctionByName("f1");
+//    auto* f2 = getFunctionByName("f2");
+//    auto* bb1 = &f1->front();
+//    auto* bb2 = &f2->front();
+//    auto* a = getInstructionByName("a");
+//    auto* b = getInstructionByName("b");
+//    auto* c = getInstructionByName("c");
+//    auto* r = getNthInstruction<ReturnInst>();
+//    auto* d = getInstructionByName("d");
+//
+//    retdec::llvmir_emul::LlvmIrEmulator emu(module.get());
+//    emu.runFunction(f1);
+//
+//    auto vis = emu.getVisitedInstructions();
+//    auto vbs = emu.getVisitedBasicBlocks();
+//
+//    std::list<Instruction*> exVis = {a, b, c, r};
+//    EXPECT_EQ(exVis, vis);
+//    std::list<BasicBlock*> exVbs = {bb1};
+//    EXPECT_EQ(exVbs, vbs);
+//    EXPECT_TRUE(emu.wasInstructionVisited(a));
+//    EXPECT_TRUE(emu.wasInstructionVisited(b));
+//    EXPECT_TRUE(emu.wasInstructionVisited(c));
+//    EXPECT_TRUE(emu.wasInstructionVisited(r));
+//    EXPECT_TRUE(emu.wasBasicBlockVisited(bb1));
+//    EXPECT_FALSE(emu.wasInstructionVisited(d));
+//    EXPECT_FALSE(emu.wasBasicBlockVisited(bb2));
 
-    LlvmIrEmulator emu(module.get());
-    emu.runFunction(f1);
-
-    auto vis = emu.getVisitedInstructions();
-    auto vbs = emu.getVisitedBasicBlocks();
-
-    std::list<Instruction*> exVis = {a, b, c, r};
-    EXPECT_EQ(exVis, vis);
-    std::list<BasicBlock*> exVbs = {bb1};
-    EXPECT_EQ(exVbs, vbs);
-    EXPECT_TRUE(emu.wasInstructionVisited(a));
-    EXPECT_TRUE(emu.wasInstructionVisited(b));
-    EXPECT_TRUE(emu.wasInstructionVisited(c));
-    EXPECT_TRUE(emu.wasInstructionVisited(r));
-    EXPECT_TRUE(emu.wasBasicBlockVisited(bb1));
-    EXPECT_FALSE(emu.wasInstructionVisited(d));
-    EXPECT_FALSE(emu.wasBasicBlockVisited(bb2));
     return 0;
 }
