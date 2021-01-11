@@ -30,7 +30,7 @@
 #include <llvm/IR/Function.h>
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/IRReader/IRReader.h>
-//#include "llvmir_tests.h"
+#include "llvmir_tests.h"
 
 #include "llvmir-emul.h"
 
@@ -3413,31 +3413,32 @@ int main(int argc, char *argv[])
     SMDiagnostic err;
 
     unique_ptr<Module> m(parseIRFile("x64_gzip_1_10_gcc_O2.bc", err, ctx));
-    if (m) {
-        if (argc < 3) {
-            for (Module::iterator FunIt = m->begin(); FunIt != m->end(); ++FunIt) {
-                cout << "function name is " << FunIt->getName().str() << endl;
-                for (Function::iterator i = FunIt->begin(), e = FunIt->end(); i != e; ++i) {
-                    cout << "block name is " << i->getName().str() << endl;
-                    for (auto j = i->begin(), f = i->end(); j != f; j++) {
-                        j->dump();
-                    }
-                }
-            }
-        }
-        else{
-            string name = argv[2];
-            for (Module::iterator FunIt = m->begin(); FunIt != m->end(); ++FunIt) {
-                for (Function::iterator i = FunIt->begin(), e = FunIt->end(); i != e; ++i) {
-                    string blockName = i->getName().str();
-                    if (name==blockName){
-                        i->dump();
-                    }
-                }
-            }
-        }
-        // m->dump();
-    }
+    retdec::llvmir_emul::LlvmIrEmulator emu(m.get());
+//    if (m) {
+//        if (argc < 3) {
+//            for (Module::iterator FunIt = m->begin(); FunIt != m->end(); ++FunIt) {
+//                cout << "function name is " << FunIt->getName().str() << endl;
+//                for (Function::iterator i = FunIt->begin(), e = FunIt->end(); i != e; ++i) {
+//                    cout << "block name is " << i->getName().str() << endl;
+//                    for (auto j = i->begin(), f = i->end(); j != f; j++) {
+//                        j->dump();
+//                    }
+//                }
+//            }
+//        }
+//        else{
+//            string name = argv[2];
+//            for (Module::iterator FunIt = m->begin(); FunIt != m->end(); ++FunIt) {
+//                for (Function::iterator i = FunIt->begin(), e = FunIt->end(); i != e; ++i) {
+//                    string blockName = i->getName().str();
+//                    if (name==blockName){
+//                        i->dump();
+//                    }
+//                }
+//            }
+//        }
+//        // m->dump();
+//    }
 
     return 0;
 }

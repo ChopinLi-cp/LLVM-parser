@@ -18,7 +18,7 @@
 #include <llvm/Support/SourceMgr.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include "retdec/utils/string.h"
+#include "utils/string.h"
 
 /**
  * Print any LLVM object which implements @c print(llvm::raw_string_ostream&)

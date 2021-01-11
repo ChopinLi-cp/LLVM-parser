@@ -89,6 +89,12 @@ if (LLVM_HOME_PATH)
             CONFIG
             PATHS ${LLVM_HOME_PATH})
 
+#    find_package(GTest
+#                REQUIRED
+#                CONFIG
+#                PATHS ${GTEST_HOME_PATH})
+
+
     #include_directories(${LLVM_INCLUDE_DIRS})
     #add_definitions(${LLVM_DEFINITIONS})
 
@@ -121,7 +127,7 @@ if (LLVM_HOME_PATH)
     #message(STATUS "${LLVM_LINK_COMPONENTS}")
 
     # Link against LLVM libraries
-    target_link_libraries(UnitTest ${llvm_libs})
+    target_link_libraries(UnitTest ${llvm_libs} GTest)
 
 else()
     message(FATAL_ERROR)
