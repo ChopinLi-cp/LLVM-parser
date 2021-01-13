@@ -57,80 +57,80 @@ include CMakeFiles/UnitTest.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/UnitTest.dir/flags.make
 
-CMakeFiles/UnitTest.dir/main.cpp.o: CMakeFiles/UnitTest.dir/flags.make
-CMakeFiles/UnitTest.dir/main.cpp.o: ../main.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/UnitTest.dir/main.cpp.o"
-	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/UnitTest.dir/main.cpp.o -c /home/lichengpeng/toy/UnitTest/main.cpp
+CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o: CMakeFiles/UnitTest.dir/flags.make
+CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o: ../llvm_emul_tests.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o"
+	/usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o -c /home/lichengpeng/toy/UnitTest/llvm_emul_tests.cpp
 
-CMakeFiles/UnitTest.dir/main.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/UnitTest.dir/main.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/lichengpeng/toy/UnitTest/main.cpp > CMakeFiles/UnitTest.dir/main.cpp.i
+CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/lichengpeng/toy/UnitTest/llvm_emul_tests.cpp > CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.i
 
-CMakeFiles/UnitTest.dir/main.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/UnitTest.dir/main.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/lichengpeng/toy/UnitTest/main.cpp -o CMakeFiles/UnitTest.dir/main.cpp.s
+CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/lichengpeng/toy/UnitTest/llvm_emul_tests.cpp -o CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.s
 
-CMakeFiles/UnitTest.dir/main.cpp.o.requires:
+CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.requires:
 
-.PHONY : CMakeFiles/UnitTest.dir/main.cpp.o.requires
+.PHONY : CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.requires
 
-CMakeFiles/UnitTest.dir/main.cpp.o.provides: CMakeFiles/UnitTest.dir/main.cpp.o.requires
-	$(MAKE) -f CMakeFiles/UnitTest.dir/build.make CMakeFiles/UnitTest.dir/main.cpp.o.provides.build
-.PHONY : CMakeFiles/UnitTest.dir/main.cpp.o.provides
+CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.provides: CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.requires
+	$(MAKE) -f CMakeFiles/UnitTest.dir/build.make CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.provides.build
+.PHONY : CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.provides
 
-CMakeFiles/UnitTest.dir/main.cpp.o.provides.build: CMakeFiles/UnitTest.dir/main.cpp.o
+CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.provides.build: CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o
 
 
 # Object files for target UnitTest
 UnitTest_OBJECTS = \
-"CMakeFiles/UnitTest.dir/main.cpp.o"
+"CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o"
 
 # External object files for target UnitTest
 UnitTest_EXTERNAL_OBJECTS =
 
-UnitTest: CMakeFiles/UnitTest.dir/main.cpp.o
-UnitTest: CMakeFiles/UnitTest.dir/build.make
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMBitWriter.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMIRReader.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMObject.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMInstCombine.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMipo.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMAsmParser.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMBitReader.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMMCParser.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMCodeGen.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMProfileData.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMSupport.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMScalarOpts.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMTransformUtils.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMAnalysis.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMTarget.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMCore.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMMC.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMObject.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMVectorize.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMInstCombine.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMProfileData.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMObject.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMBitReader.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMMCParser.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMTransformUtils.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMipa.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMAnalysis.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMTarget.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMCore.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMMC.a
-UnitTest: /home/lichengpeng/local/llvm/lib/libLLVMSupport.a
-UnitTest: CMakeFiles/UnitTest.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable UnitTest"
+UniTest: CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o
+UniTest: CMakeFiles/UnitTest.dir/build.make
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMBitWriter.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMIRReader.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMObject.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMInstCombine.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMipo.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMAsmParser.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMBitReader.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMMCParser.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMCodeGen.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMProfileData.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMSupport.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMScalarOpts.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMTransformUtils.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMAnalysis.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMTarget.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMCore.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMMC.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMObject.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMVectorize.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMInstCombine.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMProfileData.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMObject.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMBitReader.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMMCParser.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMTransformUtils.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMipa.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMAnalysis.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMTarget.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMCore.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMMC.a
+UniTest: /home/lichengpeng/local/llvm/lib/libLLVMSupport.a
+UniTest: CMakeFiles/UnitTest.dir/link.txt
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable UniTest"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/UnitTest.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
-CMakeFiles/UnitTest.dir/build: UnitTest
+CMakeFiles/UnitTest.dir/build: UniTest
 
 .PHONY : CMakeFiles/UnitTest.dir/build
 
-CMakeFiles/UnitTest.dir/requires: CMakeFiles/UnitTest.dir/main.cpp.o.requires
+CMakeFiles/UnitTest.dir/requires: CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o.requires
 
 .PHONY : CMakeFiles/UnitTest.dir/requires
 

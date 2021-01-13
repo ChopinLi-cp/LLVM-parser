@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/UnitTest.dir/main.cpp.o"
-  "UnitTest.pdb"
-  "UnitTest"
+  "CMakeFiles/UnitTest.dir/llvm_emul_tests.cpp.o"
+  "UniTest.pdb"
+  "UniTest"
 )
 
 # Per-language clean rules from dependency scanning.

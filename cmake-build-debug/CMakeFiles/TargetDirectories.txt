@@ -1,3 +1,7 @@
-/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/install/strip.dir
+/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/install/local.dir
 /home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/edit_cache.dir
-/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/UnitTest.dir
+/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/rebuild_cache.dir
+/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/install.dir
+/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/llvmir-emul.dir
+/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles/list_install_components.dir

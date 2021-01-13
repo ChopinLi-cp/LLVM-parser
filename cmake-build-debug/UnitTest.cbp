@@ -5,7 +5,7 @@
 		<Option title="UnitTest"/>
 		<Option makefile_is_custom="1"/>
 		<Option compiler="gcc"/>
-		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\local\;CMake Files\..\..\local\llvm\;CMake Files\..\..\local\llvm\share\;CMake Files\..\..\local\llvm\share\llvm\;CMake Files\..\..\local\llvm\share\llvm\cmake\;"/>
+		<Option virtualFolders="CMake Files\;CMake Files\..\;CMake Files\..\..\;CMake Files\..\..\local\;CMake Files\..\..\local\llvm\;CMake Files\..\..\local\llvm\share\;CMake Files\..\..\local\llvm\share\llvm\;CMake Files\..\..\local\llvm\share\llvm\cmake\;CMake Files\..\..\local\cmake\;CMake Files\..\..\local\cmake\lib64\;CMake Files\..\..\local\cmake\lib64\cmake\;CMake Files\..\..\local\cmake\lib64\cmake\GTest\;"/>
 		<Build>
 			<Target title="all">
 				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
@@ -17,28 +17,28 @@
 					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
-			<Target title="rebuild_cache">
+			<Target title="install/strip">
 				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
 				<Option type="4"/>
 				<MakeCommands>
-					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 install/strip"/>
 					<CompileFile command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
 					<Clean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
-			<Target title="edit_cache">
+			<Target title="install/local">
 				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
 				<Option type="4"/>
 				<MakeCommands>
-					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 install/local"/>
 					<CompileFile command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
 					<Clean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
 			<Target title="UnitTest">
-				<Option output="/home/lichengpeng/toy/UnitTest/cmake-build-debug/UnitTest" prefix_auto="0" extension_auto="0"/>
+				<Option output="/home/lichengpeng/toy/UnitTest/cmake-build-debug/UniTest" prefix_auto="0" extension_auto="0"/>
 				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
 				<Option object_output="./"/>
 				<Option type="1"/>
@@ -46,6 +46,8 @@
 				<Compiler>
 					<Add option="-D__STDC_LIMIT_MACROS"/>
 					<Add option="-D__STDC_CONSTANT_MACROS"/>
+					<Add directory="/home/lichengpeng/toy/tests-llvm-emul/retdec_tests"/>
+					<Add directory="/home/lichengpeng/local/cmake/include"/>
 					<Add directory="/home/lichengpeng/local/llvm/include"/>
 					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../include/c++/4.8.5"/>
 					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../include/c++/4.8.5/x86_64-redhat-linux"/>
@@ -62,7 +64,7 @@
 				</MakeCommands>
 			</Target>
 			<Target title="UnitTest/fast">
-				<Option output="/home/lichengpeng/toy/UnitTest/cmake-build-debug/UnitTest" prefix_auto="0" extension_auto="0"/>
+				<Option output="/home/lichengpeng/toy/UnitTest/cmake-build-debug/UniTest" prefix_auto="0" extension_auto="0"/>
 				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
 				<Option object_output="./"/>
 				<Option type="1"/>
@@ -70,6 +72,8 @@
 				<Compiler>
 					<Add option="-D__STDC_LIMIT_MACROS"/>
 					<Add option="-D__STDC_CONSTANT_MACROS"/>
+					<Add directory="/home/lichengpeng/toy/tests-llvm-emul/retdec_tests"/>
+					<Add directory="/home/lichengpeng/local/cmake/include"/>
 					<Add directory="/home/lichengpeng/local/llvm/include"/>
 					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../include/c++/4.8.5"/>
 					<Add directory="/usr/lib/gcc/x86_64-redhat-linux/4.8.5/../../../../include/c++/4.8.5/x86_64-redhat-linux"/>
@@ -85,8 +89,48 @@
 					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
 				</MakeCommands>
 			</Target>
+			<Target title="edit_cache">
+				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 edit_cache"/>
+					<CompileFile command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="rebuild_cache">
+				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 rebuild_cache"/>
+					<CompileFile command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="install">
+				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 install"/>
+					<CompileFile command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
+			<Target title="list_install_components">
+				<Option working_dir="/home/lichengpeng/toy/UnitTest/cmake-build-debug"/>
+				<Option type="4"/>
+				<MakeCommands>
+					<Build command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 list_install_components"/>
+					<CompileFile command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 &quot;$file&quot;"/>
+					<Clean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+					<DistClean command="/bin/make -j80 -f &quot;/home/lichengpeng/toy/UnitTest/cmake-build-debug/Makefile&quot;  VERBOSE=1 clean"/>
+				</MakeCommands>
+			</Target>
 		</Build>
-		<Unit filename="/home/lichengpeng/toy/UnitTest/main.cpp">
+		<Unit filename="/home/lichengpeng/toy/UnitTest/llvm_emul_tests.cpp">
 			<Option target="UnitTest"/>
 		</Unit>
 		<Unit filename="/home/lichengpeng/toy/UnitTest/CMakeLists.txt">
@@ -106,6 +150,18 @@
 		</Unit>
 		<Unit filename="/home/lichengpeng/toy/UnitTest/../../local/llvm/share/llvm/cmake/LLVMExports.cmake">
 			<Option virtualFolder="CMake Files\..\..\local\llvm\share\llvm\cmake\"/>
+		</Unit>
+		<Unit filename="/home/lichengpeng/toy/UnitTest/../../local/cmake/lib64/cmake/GTest/GTestConfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\local\cmake\lib64\cmake\GTest\"/>
+		</Unit>
+		<Unit filename="/home/lichengpeng/toy/UnitTest/../../local/cmake/lib64/cmake/GTest/GTestConfigVersion.cmake">
+			<Option virtualFolder="CMake Files\..\..\local\cmake\lib64\cmake\GTest\"/>
+		</Unit>
+		<Unit filename="/home/lichengpeng/toy/UnitTest/../../local/cmake/lib64/cmake/GTest/GTestTargets-noconfig.cmake">
+			<Option virtualFolder="CMake Files\..\..\local\cmake\lib64\cmake\GTest\"/>
+		</Unit>
+		<Unit filename="/home/lichengpeng/toy/UnitTest/../../local/cmake/lib64/cmake/GTest/GTestTargets.cmake">
+			<Option virtualFolder="CMake Files\..\..\local\cmake\lib64\cmake\GTest\"/>
 		</Unit>
 	</Project>
 </CodeBlocks_project_file>

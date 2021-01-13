@@ -60,39 +60,39 @@ CMAKE_SOURCE_DIR = /home/lichengpeng/toy/UnitTest
 CMAKE_BINARY_DIR = /home/lichengpeng/toy/UnitTest/cmake-build-debug
 
 #=============================================================================
-# Target rules for target CMakeFiles/UnitTest.dir
+# Target rules for target CMakeFiles/llvmir-emul.dir
 
 # All Build rule for target.
-CMakeFiles/UnitTest.dir/all:
-	$(MAKE) -f CMakeFiles/UnitTest.dir/build.make CMakeFiles/UnitTest.dir/depend
-	$(MAKE) -f CMakeFiles/UnitTest.dir/build.make CMakeFiles/UnitTest.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles --progress-num=1,2 "Built target UnitTest"
-.PHONY : CMakeFiles/UnitTest.dir/all
+CMakeFiles/llvmir-emul.dir/all:
+	$(MAKE) -f CMakeFiles/llvmir-emul.dir/build.make CMakeFiles/llvmir-emul.dir/depend
+	$(MAKE) -f CMakeFiles/llvmir-emul.dir/build.make CMakeFiles/llvmir-emul.dir/build
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles --progress-num=1,2 "Built target llvmir-emul"
+.PHONY : CMakeFiles/llvmir-emul.dir/all
 
 # Include target in all.
-all: CMakeFiles/UnitTest.dir/all
+all: CMakeFiles/llvmir-emul.dir/all
 
 .PHONY : all
 
 # Build rule for subdir invocation for target.
-CMakeFiles/UnitTest.dir/rule: cmake_check_build_system
+CMakeFiles/llvmir-emul.dir/rule: cmake_check_build_system
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles 2
-	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/UnitTest.dir/all
+	$(MAKE) -f CMakeFiles/Makefile2 CMakeFiles/llvmir-emul.dir/all
 	$(CMAKE_COMMAND) -E cmake_progress_start /home/lichengpeng/toy/UnitTest/cmake-build-debug/CMakeFiles 0
-.PHONY : CMakeFiles/UnitTest.dir/rule
+.PHONY : CMakeFiles/llvmir-emul.dir/rule
 
 # Convenience name for target.
-UnitTest: CMakeFiles/UnitTest.dir/rule
+llvmir-emul: CMakeFiles/llvmir-emul.dir/rule
 
-.PHONY : UnitTest
-
-# clean rule for target.
-CMakeFiles/UnitTest.dir/clean:
-	$(MAKE) -f CMakeFiles/UnitTest.dir/build.make CMakeFiles/UnitTest.dir/clean
-.PHONY : CMakeFiles/UnitTest.dir/clean
+.PHONY : llvmir-emul
 
 # clean rule for target.
-clean: CMakeFiles/UnitTest.dir/clean
+CMakeFiles/llvmir-emul.dir/clean:
+	$(MAKE) -f CMakeFiles/llvmir-emul.dir/build.make CMakeFiles/llvmir-emul.dir/clean
+.PHONY : CMakeFiles/llvmir-emul.dir/clean
+
+# clean rule for target.
+clean: CMakeFiles/llvmir-emul.dir/clean
 
 .PHONY : clean
 

@@ -3083,7 +3083,7 @@ void LlvmIrEmulator::visitCallInst(llvm::CallInst& I)
 
     auto* cf = I.getCalledFunction();
     if (cf && cf->isDeclaration() && cf->isIntrinsic() &&
-        !( cf->getIntrinsicID() == Intrinsic::mips_bitrev
+        !( cf->getIntrinsicID() == Intrinsic::mips_bitrev //bitreverse
           || cf->getIntrinsicID() == Intrinsic::xcore_bitrev// **** ConstantInt::get(Ty->getContext(), Op->getValue().reverseBits()
           || cf->getIntrinsicID() == Intrinsic::maxnum
           || cf->getIntrinsicID() == Intrinsic::minnum
@@ -3414,6 +3414,8 @@ int main(int argc, char *argv[])
 
     unique_ptr<Module> m(parseIRFile("x64_gzip_1_10_gcc_O2.bc", err, ctx));
     retdec::llvmir_emul::LlvmIrEmulator emu(m.get());
+//    retdec::llvmir_emul::tests::LlvmIrTests *test = new retdec::llvmir_emul::tests::LlvmIrTests();
+//    auto *func = retdec::llvmir_emul::tests::LlvmIrTests::getFunctionByName("current_timespec");
 //    if (m) {
 //        if (argc < 3) {
 //            for (Module::iterator FunIt = m->begin(); FunIt != m->end(); ++FunIt) {

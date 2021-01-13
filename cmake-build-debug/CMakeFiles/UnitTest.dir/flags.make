@@ -6,5 +6,5 @@ CXX_FLAGS = -g   -std=gnu++1y
 
 CXX_DEFINES = -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS
 
-CXX_INCLUDES = -I/home/lichengpeng/local/llvm/include 
+CXX_INCLUDES = -I/home/lichengpeng/toy/tests-llvm-emul/retdec_tests -I/home/lichengpeng/local/cmake/include -I/home/lichengpeng/local/llvm/include 
 
