@@ -2011,7 +2011,6 @@ break
 
                 // Otherwise, we have a simple constant.
                 GenericValue Result;
-//                cout << C->getType()->getTypeID();
                 switch (C->getType()->getTypeID())
                 {
                     case Type::FloatTyID:
@@ -2049,6 +2048,8 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
+                            F->dump();
+                            cout << "Function" << endl;
                             assert(false && "taking a pointer to function is not implemented");
                             Result = PTOGV(const_cast<Function*>(F));
                         }
@@ -2060,7 +2061,9 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
-                            assert(false && "taking a pointer to global variable is not implemented");
+                            GV->dump();
+                            cout << "GV" << endl;
+//                            assert(false && "taking a pointer to global variable is not implemented");
                             Result = PTOGV(const_cast<GlobalVariable*>(GV));
                         }
                         else
@@ -2334,8 +2337,15 @@ break
         {
             for (GlobalVariable& gv : _module->globals())
             {
-                auto val = getConstantValue(gv.getInitializer(), _module);
-                setGlobalVariableValue(&gv, val);
+                gv.dump();
+                if(!gv.isDeclaration()) {
+                    auto val = getConstantValue(gv.getInitializer(), _module);
+                    setGlobalVariableValue(&gv, val);
+                }
+                else {
+                    auto val = getConstantValue(gv.getInitializer(), _module);
+                    setGlobalVariableValue(&gv, val);
+                }
             }
 
             IL = new IntrinsicLowering(*(_module->getDataLayout())); // **** add *
@@ -2388,7 +2398,7 @@ break
             unsigned i = 0;
             for (auto ai = f->arg_begin(), e = f->arg_end(); ai != e; ++ai, ++i)
             {
-                _globalEc.setValue(&*ai, argVals[i]);
+                _globalEc.setValue(ai, argVals[i]);
             }
         }
 
@@ -2404,6 +2414,8 @@ break
                 Instruction& i = *ec.curInst++;
 
                 logInstruction(&i);
+                cout << i.getOpcode() << " " << i.getOpcodeName() << " " << i.getOperand(0) << " ";
+                cout << _globalEc.getOperandValue(i.getOperand(0), ec).IntVal.toString(10, 0) << endl;
                 visit(i);
             }
         }

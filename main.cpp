@@ -2388,7 +2388,7 @@ void LlvmIrEmulator::callFunction(
     unsigned i = 0;
     for (auto ai = f->arg_begin(), e = f->arg_end(); ai != e; ++ai, ++i)
     {
-        _globalEc.setValue(&*ai, argVals[i]);
+        _globalEc.setValue(ai, argVals[i]);
     }
 }
 
