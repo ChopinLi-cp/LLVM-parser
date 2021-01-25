@@ -46,10 +46,10 @@ namespace retdec {
                 llvm::raw_string_ostream ss(str);
                 if (t) {
                     t->print(ss);
-                    cout << t << endl;
+//                    cout << t << endl;
                 } else {
                     ss << "nullptr";
-                    cout << ss.str() << endl;
+//                    cout << ss.str() << endl;
                 }
                 return ss.str();
             }
@@ -1748,6 +1748,7 @@ break
                             cast<GEPOperator>(CE)->accumulateConstantOffset(*DL, Offset); // **** change DL to *DL
 
                             char* tmp = static_cast<char*>(Result.PointerVal);
+//                            cout << tmp << " tmp char" << endl;
                             Result = PTOGV(tmp + Offset.getSExtValue());
                             return Result;
                         }
@@ -2048,9 +2049,9 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
-                            F->dump();
+//                            F->dump();
                             cout << "Function" << endl;
-                            assert(false && "taking a pointer to function is not implemented");
+//                            assert(false && "taking a pointer to function is not implemented");
                             Result = PTOGV(const_cast<Function*>(F));
                         }
                         else if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(C))
@@ -2061,10 +2062,13 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
-                            GV->dump();
+//                            GV->dump();
                             cout << "GV" << endl;
 //                            assert(false && "taking a pointer to global variable is not implemented");
                             Result = PTOGV(const_cast<GlobalVariable*>(GV));
+//                            char* tmp = static_cast<char*>(Result.PointerVal);
+//                            cout << tmp << endl;
+                            cout << Result.IntVal.toString(10, 0) << endl;
                         }
                         else
                         {
@@ -2337,15 +2341,26 @@ break
         {
             for (GlobalVariable& gv : _module->globals())
             {
-                gv.dump();
+//                gv.dump();
                 if(!gv.isDeclaration()) {
                     auto val = getConstantValue(gv.getInitializer(), _module);
+                    cout << gv.getType() << " type" << endl;
+                    auto cda = dyn_cast<ConstantDataArray>(gv.getInitializer());
+                    if (cda) {
+
+                        cda->dump();
+                        cout << cda->getAsCString().str() << " str value" << endl;
+                    }
+//                    if(gv.getType()) {
+//                        cout << static_cast<char*>(val.PointerVal) << endl;
+//                    }
+//                    cout << static_cast<char *>(val.PointerVal) << " char" << endl;
                     setGlobalVariableValue(&gv, val);
                 }
-                else {
-                    auto val = getConstantValue(gv.getInitializer(), _module);
-                    setGlobalVariableValue(&gv, val);
-                }
+//                else {
+//                    auto val = getConstantValue(gv.getInitializer(), _module);
+//                    setGlobalVariableValue(&gv, val);
+//                }
             }
 
             IL = new IntrinsicLowering(*(_module->getDataLayout())); // **** add *
@@ -2402,20 +2417,35 @@ break
             }
         }
 
-        void LlvmIrEmulator::run()
-        {
-            while (!_ecStack.empty())
-            {
-                auto& ec = _ecStack.back();
-                if (ec.curInst == ec.curBB->end())
-                {
+        void LlvmIrEmulator::run() {
+            while (!_ecStack.empty()) {
+                auto &ec = _ecStack.back();
+                if (ec.curInst == ec.curBB->end()) {
                     break;
                 }
-                Instruction& i = *ec.curInst++;
-
+                Instruction &i = *ec.curInst++;
                 logInstruction(&i);
-                cout << i.getOpcode() << " " << i.getOpcodeName() << " " << i.getOperand(0) << " ";
-                cout << _globalEc.getOperandValue(i.getOperand(0), ec).IntVal.toString(10, 0) << endl;
+                i.dump();
+
+                if (auto *op = dyn_cast<CallInst>(&i)) {
+                    Function *fn = op->getCalledFunction();
+                    StringRef fn_name = fn->getName();
+                    cout << fn_name.str() << endl;
+                    if (fn_name.str() == "printf") {
+                        CallSite cs(cast<Value>(op));
+                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
+                        auto t1 = cast<GlobalVariable>(t0->getOperand(0))->getInitializer();
+                        auto t2 = cast<ConstantDataArray>(t1)->getAsCString();
+                        cout << t2.str() << endl;
+                    }
+                    else if (fn_name.str() == "gnutls_credentials_set") {
+                        CallSite cs(cast<Value>(op));
+                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
+                        auto t1 = cast<ConstantExpr>(cs.getArgument(1));
+                        auto t2 = cast<ConstantExpr>(cs.getArgument(2));
+                        gnutls_credentials_set(t0, t1, t2);
+                    }
+                }
                 visit(i);
             }
         }
