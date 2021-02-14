@@ -33,6 +33,8 @@
 
 #include "llvmir-emul.h"
 
+#include <fstream>
+
 using namespace llvm;
 using namespace std;
 
@@ -46,12 +48,105 @@ namespace retdec {
                 llvm::raw_string_ostream ss(str);
                 if (t) {
                     t->print(ss);
-//                    cout << t << endl;
                 } else {
                     ss << "nullptr";
-//                    cout << ss.str() << endl;
                 }
                 return ss.str();
+            }
+
+            char* readFromFile(string str, int length)
+            {
+                char c;
+                int size = length/8;
+                if(8 * size < length) size += 2;
+                char array_c[size];
+                ifstream infile;
+                infile.open(str);
+
+                if(!infile.is_open()){
+                    cout << "the file could not be opened!" << endl;
+                    // ****
+                }
+
+                int i = 0;
+                while(!infile.eof())
+                {
+                    infile>>c;
+                    array_c[i] = c;
+                    i++;
+                    if(i/2==0)
+                    {
+                        infile>>c;
+                        if(i==size)
+                        {
+                            infile.close();
+                            return array_c;
+                        }
+                    }
+                }
+            }
+
+            llvm::GenericValue getRandomValue(int type, int length)
+            {
+                llvm::GenericValue gv;
+
+                string str = "./1611224159_random.txt";
+                int i = 0;
+                llvm::GenericValue result;
+                string tmp = readFromFile(str, length);
+                char *numTmp = new char[tmp.size()];
+                llvm::StringRef strRef = tmp;
+                int size = length/8;
+                if(8 * size < length) size += 2;
+                switch(type){
+                    case 0:
+                        break;
+                    case 1:
+                        tmp = "0X" + tmp;
+                        result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEhalf, tmp).convertToFloat();
+                        break;
+                    case 2:
+                        tmp = "0X" + tmp;
+                        result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEsingle, tmp).convertToFloat();
+                        break;
+                    case 3:
+                        tmp = "0X" + tmp;
+                        result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEdouble, tmp).convertToFloat();
+                        break;
+                    case 4:
+                        tmp = "0X" + tmp;
+                        result.FloatVal=llvm::APFloat(llvm::APFloat::x87DoubleExtended, tmp).convertToFloat();
+                        break;
+                    case 5:
+                        tmp = "0X" + tmp;
+                        result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEquad, tmp).convertToFloat();
+                        break;
+                    case 6:
+                        tmp = "0X" + tmp;
+                        result.FloatVal=llvm::APFloat(llvm::APFloat::PPCDoubleDouble, tmp).convertToFloat();
+                        break;
+                    case 7:
+                    case 8:
+                    case 9:
+                        break;
+                    case 10:
+                        result.IntVal = llvm::APInt(length, strRef, 16);
+                        break;
+                    case 11:
+                    case 12:
+                    case 13:
+                        break;
+                    case 14:
+                        tmp = "0X" + tmp;
+                        for(int i=0; i<tmp.size(); i++ )
+                        {
+                            numTmp[i] = tmp[i];
+                        }
+                        result.PointerVal = reinterpret_cast<llvm::PointerTy>(strtol(numTmp, NULL, 16));
+                        break;
+                    case 15:
+                        break;
+                }
             }
 
 //
@@ -886,6 +981,7 @@ break
 
                 // Now loop over all of the PHI nodes setting their values...
                 SF.curInst = SF.curBB->begin();
+                SF.curInst->dump();
                 for (unsigned i = 0; isa<PHINode>(SF.curInst); ++SF.curInst, ++i)
                 {
                     PHINode *PN = cast<PHINode>(SF.curInst);
@@ -981,6 +1077,10 @@ break
                 {
                     IntegerType *DITy = cast<IntegerType>(DstTy);
                     unsigned DBitWidth = DITy->getBitWidth();
+                    cout << DBitWidth << "width" << endl;
+                    SrcVal->dump();
+                    cout << Src.IntVal.toString(10, 0) << endl;
+                    Src.IntVal.dump();
                     Dest.IntVal = Src.IntVal.trunc(DBitWidth);
                 }
                 return Dest;
@@ -1748,7 +1848,6 @@ break
                             cast<GEPOperator>(CE)->accumulateConstantOffset(*DL, Offset); // **** change DL to *DL
 
                             char* tmp = static_cast<char*>(Result.PointerVal);
-//                            cout << tmp << " tmp char" << endl;
                             Result = PTOGV(tmp + Offset.getSExtValue());
                             return Result;
                         }
@@ -2049,10 +2148,11 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
-//                            F->dump();
                             cout << "Function" << endl;
-//                            assert(false && "taking a pointer to function is not implemented");
-                            Result = PTOGV(const_cast<Function*>(F));
+                            cout << F->getReturnType()->getTypeID() << endl;
+                            int typeId = F->getReturnType()->getTypeID();
+                            int length = DL->getTypeSizeInBits(F->getReturnType());
+                            // assert(false && "taking a pointer to function is not implemented");
                         }
                         else if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(C))
                         {
@@ -2062,13 +2162,11 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
-//                            GV->dump();
                             cout << "GV" << endl;
-//                            assert(false && "taking a pointer to global variable is not implemented");
+                            // assert(false && "taking a pointer to global variable is not implemented");
                             Result = PTOGV(const_cast<GlobalVariable*>(GV));
-//                            char* tmp = static_cast<char*>(Result.PointerVal);
-//                            cout << tmp << endl;
-                            cout << Result.IntVal.toString(10, 0) << endl;
+                            //  if(!GV->isDeclaration()) {
+                            //  }
                         }
                         else
                         {
@@ -2279,10 +2377,12 @@ break
         {
             if (ConstantExpr* ce = dyn_cast<ConstantExpr>(val))
             {
+                cout << "It is a constantExpr" << endl;
                 return getConstantExprValue(ce, ec, *this);
             }
             else if (Constant* cpv = dyn_cast<Constant>(val))
             {
+                cout << "It is a constant" << endl;
                 return  getConstantValue(cpv, getModule());
             }
             else if (isa<GlobalValue>(val))
@@ -2292,6 +2392,9 @@ break
             }
             else
             {
+                if(val->getType()->isIntegerTy()) {
+                    cout << val->getType()->getIntegerBitWidth() << endl;
+                }
                 return values[val];
             }
         }
@@ -2327,8 +2430,6 @@ break
         llvm::Module *LocalExecutionContext::getModule() const {
             return curFunction->getParent();
         }
-
-
 //
 //=============================================================================
 // LlvmIrEmulator
@@ -2341,24 +2442,19 @@ break
         {
             for (GlobalVariable& gv : _module->globals())
             {
-//                gv.dump();
                 if(!gv.isDeclaration()) {
                     auto val = getConstantValue(gv.getInitializer(), _module);
-                    cout << gv.getType() << " type" << endl;
                     auto cda = dyn_cast<ConstantDataArray>(gv.getInitializer());
                     if (cda) {
-
-                        cda->dump();
                         cout << cda->getAsCString().str() << " str value" << endl;
                     }
-//                    if(gv.getType()) {
-//                        cout << static_cast<char*>(val.PointerVal) << endl;
-//                    }
-//                    cout << static_cast<char *>(val.PointerVal) << " char" << endl;
                     setGlobalVariableValue(&gv, val);
                 }
 //                else {
-//                    auto val = getConstantValue(gv.getInitializer(), _module);
+//                    int typeID = gv.getType()->getTypeID();
+//                    int length = gv.getType()->getIntegerBitWidth();
+//                    GenericValue val;
+//                    val.IntVal = APInt(10, 100);
 //                    setGlobalVariableValue(&gv, val);
 //                }
             }
@@ -2382,10 +2478,12 @@ break
                     0,
                     std::min(argVals.size(), ac));
 
+            cout << ac << " and " << aargs.size() << endl;
             callFunction(f, aargs);
 
             run();
 
+            cout << "inside the runFunction " + _exitValue.IntVal.toString(10, 0) << endl;
             return _exitValue;
         }
 
@@ -2425,26 +2523,37 @@ break
                 }
                 Instruction &i = *ec.curInst++;
                 logInstruction(&i);
+                cout << "instruction begins" << endl;
                 i.dump();
-
+                cout << _globalEc.getOperandValue(i.getOperand(0), ec).IntVal.toString(10, 0) << endl;
+                cout << "the value" << endl;
+                i.getOperand(0)->dump();
                 if (auto *op = dyn_cast<CallInst>(&i)) {
                     Function *fn = op->getCalledFunction();
                     StringRef fn_name = fn->getName();
                     cout << fn_name.str() << endl;
-                    if (fn_name.str() == "printf") {
-                        CallSite cs(cast<Value>(op));
-                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
-                        auto t1 = cast<GlobalVariable>(t0->getOperand(0))->getInitializer();
-                        auto t2 = cast<ConstantDataArray>(t1)->getAsCString();
-                        cout << t2.str() << endl;
-                    }
-                    else if (fn_name.str() == "gnutls_credentials_set") {
-                        CallSite cs(cast<Value>(op));
-                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
-                        auto t1 = cast<ConstantExpr>(cs.getArgument(1));
-                        auto t2 = cast<ConstantExpr>(cs.getArgument(2));
-                        gnutls_credentials_set(t0, t1, t2);
-                    }
+//                    if (fn_name.str() == "printf") {
+//                        CallSite cs(cast<Value>(op));
+//                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
+//                        auto t1 = cast<GlobalVariable>(t0->getOperand(0))->getInitializer();
+//                        auto t2 = cast<ConstantDataArray>(t1)->getAsCString();
+//                        cout << t2.str() << endl;
+//                    }
+//                    else if(fn_name.str() == "function_1f90") {
+//                        GenericValue dest = this->runFunction(fn);
+//                        cout << dest.IntVal.toString(10, 0) << endl;
+//                        _globalEc.setValue(&i, dest);
+//                        cout << i.getOperand(0)->getName().str() << endl;
+//                        cout << _globalEc.getOperandValue(i.getOperand(0), ec).IntVal.toString(10, 0) << endl;
+//                        cout << "test result" << endl;
+//                    }
+//                    else if (fn_name.str() == "gnutls_credentials_set") {
+//                        CallSite cs(cast<Value>(op));
+//                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
+//                        auto t1 = cast<ConstantExpr>(cs.getArgument(1));
+//                        auto t2 = cast<ConstantExpr>(cs.getArgument(2));
+//                        gnutls_credentials_set(t0, t1, t2);
+//                    }
                 }
                 visit(i);
             }
@@ -2688,10 +2797,12 @@ break
             _ecStackRetired.emplace_back(_ecStack.back());
             _ecStack.pop_back();
 
+            cout << "this method has been invoked." << endl;
             // Finished main. Put result into exit code...
             //
             if (_ecStack.empty())
             {
+                cout << "empty." << endl;
                 if (retT && !retT->isVoidTy())
                 {
                     _exitValue = res;
@@ -2708,8 +2819,12 @@ break
             else
             {
                 LocalExecutionContext& callingEc = _ecStack.back();
+                cout << "not empty" << endl;
+                res.IntVal.dump();
                 if (Instruction* I = callingEc.caller.getInstruction())
                 {
+                    I->dump();
+                    cout << "save result" << endl;
                     // Save result...
                     if (!callingEc.caller.getType()->isVoidTy())
                     {
@@ -2723,6 +2838,7 @@ break
                     callingEc.caller = CallSite();
                 }
             }
+            cout << _exitValue.IntVal.toString(10, 0) << endl;
         }
 
         void LlvmIrEmulator::visitReturnInst(llvm::ReturnInst& I)
@@ -2734,9 +2850,11 @@ break
             // Save away the return value... (if we are not 'ret void')
             if (I.getNumOperands())
             {
+                GenericValue tmp = _globalEc.getOperandValue(I.getOperand(0), ec);
                 retTy = I.getReturnValue()->getType();
                 res = _globalEc.getOperandValue(I.getReturnValue(), ec);
             }
+            cout << res.IntVal.toString(10, 0) << endl;
 
             popStackAndReturnValueToCaller(retTy, res);
         }
@@ -3122,7 +3240,6 @@ break
         void LlvmIrEmulator::visitCallInst(llvm::CallInst& I)
         {
             LocalExecutionContext& ec = _ecStack.back();
-
             auto* cf = I.getCalledFunction();
             if (cf && cf->isDeclaration() && cf->isIntrinsic() &&
                 !( cf->getIntrinsicID() == Intrinsic::mips_bitrev //bitreverse
@@ -3155,20 +3272,54 @@ break
                     ec.curInst = me;
                     ++ec.curInst;
                 }
-
                 return;
             }
 
             CallEntry ce;
             ce.calledValue = I.getCalledValue();
-
-            for (auto aIt = I.op_begin(), eIt = I.op_end(); aIt != eIt; ++aIt) // **** change arg to op
+            cout << "before op" << endl;
+            GenericValue Dest;
+            for (auto aIt = I.op_begin(), eIt = I.op_end()-I.getNumArgOperands(); aIt != eIt; ++aIt) // **** change arg to op
             {
                 Value* val = *aIt;
+                cout << "calledValue" << endl;
+                CallSite cs(&I);
+                cout << cs.arg_size() << endl;
+
+                Function* function = cs.getCalledFunction();
+                if(!function->isDeclaration()) {
+                    cout << "declaration" << endl;
+                    ec.caller = cs;
+                    if (cs.arg_empty()) {
+                        llvm::ArrayRef<llvm::GenericValue> argVals;
+                        setGlobalVariableValue(reinterpret_cast<GlobalVariable *>(function),
+                                               runFunction(function, argVals));
+                    }
+                    else {
+                        int size = function->arg_size();
+                        llvm::GenericValue* args = new llvm::GenericValue[size];
+                        llvm::ArrayRef<llvm::GenericValue> argVals;
+                        cout << size << endl;
+                        int index = 0;
+                        for(auto i = function->arg_begin(); i != function->arg_end(); i++) {
+//                            args[index] = _globalEc.getOperandValue(i, ec);
+//                            index ++;
+                            i->dump();
+                            _globalEc.getOperandValue(i, ec).IntVal.dump();
+                        }
+                        setGlobalVariableValue(reinterpret_cast<GlobalVariable *>(function),
+                                               runFunction(function, reinterpret_cast<ArrayRef<GenericValue> &&>(args)));
+                    }
+                }
                 ce.calledArguments.push_back(_globalEc.getOperandValue(val, ec));
+                Dest = _globalEc.getOperandValue(val, ec);
             }
 
+
             _calls.push_back(ce);
+            cout << Dest.IntVal.toString(10, 0) << endl;
+            _globalEc.setValue(&I, Dest);
+            cout << "test1" << endl;
         }
 
         void LlvmIrEmulator::visitInvokeInst(llvm::InvokeInst& I)
