@@ -59,7 +59,7 @@ namespace retdec {
                 char c;
                 int size = length/8;
                 if(8 * size < length) size += 2;
-                char array_c[size];
+                char *array_c = new char[size];
                 ifstream infile;
                 infile.open(str);
 
@@ -981,7 +981,6 @@ break
 
                 // Now loop over all of the PHI nodes setting their values...
                 SF.curInst = SF.curBB->begin();
-                SF.curInst->dump();
                 for (unsigned i = 0; isa<PHINode>(SF.curInst); ++SF.curInst, ++i)
                 {
                     PHINode *PN = cast<PHINode>(SF.curInst);
@@ -1077,10 +1076,6 @@ break
                 {
                     IntegerType *DITy = cast<IntegerType>(DstTy);
                     unsigned DBitWidth = DITy->getBitWidth();
-                    cout << DBitWidth << "width" << endl;
-                    SrcVal->dump();
-                    cout << Src.IntVal.toString(10, 0) << endl;
-                    Src.IntVal.dump();
                     Dest.IntVal = Src.IntVal.trunc(DBitWidth);
                 }
                 return Dest;
@@ -1457,6 +1452,7 @@ break
                 Type *SrcTy = SrcVal->getType();
                 GenericValue Dest, Src = GC.getOperandValue(SrcVal, SF);
 
+                cout << SrcTy->getTypeID() << " + " << DstTy->getTypeID() << endl;
                 if ((SrcTy->getTypeID() == Type::VectorTyID)
                     || (DstTy->getTypeID() == Type::VectorTyID))
                 {
@@ -1621,7 +1617,8 @@ break
                     // scalar src bitcast to scalar dst
                     if (DstTy->isPointerTy())
                     {
-                        assert(SrcTy->isPointerTy() && "Invalid BitCast");
+                        cout << " here" << endl;
+                        // assert(SrcTy->isPointerTy() && "Invalid BitCast");
                         Dest.PointerVal = Src.PointerVal;
                     }
                     else if (DstTy->isIntegerTy())
@@ -1670,7 +1667,7 @@ break
                         llvm_unreachable("Invalid Bitcast");
                     }
                 }
-
+                cout << Dest.PointerVal << endl;
                 return Dest;
             }
 
@@ -2148,10 +2145,9 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
-                            cout << "Function" << endl;
-                            cout << F->getReturnType()->getTypeID() << endl;
                             int typeId = F->getReturnType()->getTypeID();
                             int length = DL->getTypeSizeInBits(F->getReturnType());
+                            Result = PTOGV(const_cast<Function*>(F));
                             // assert(false && "taking a pointer to function is not implemented");
                         }
                         else if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(C))
@@ -2162,11 +2158,8 @@ break
                             // so pointer to its LLVM representation should be ok.
                             // But we probably should not need this in our semantics tests,
                             // so we want to know if it ever gets here (assert).
-                            cout << "GV" << endl;
                             // assert(false && "taking a pointer to global variable is not implemented");
                             Result = PTOGV(const_cast<GlobalVariable*>(GV));
-                            //  if(!GV->isDeclaration()) {
-                            //  }
                         }
                         else
                         {
@@ -2377,12 +2370,10 @@ break
         {
             if (ConstantExpr* ce = dyn_cast<ConstantExpr>(val))
             {
-                cout << "It is a constantExpr" << endl;
                 return getConstantExprValue(ce, ec, *this);
             }
             else if (Constant* cpv = dyn_cast<Constant>(val))
             {
-                cout << "It is a constant" << endl;
                 return  getConstantValue(cpv, getModule());
             }
             else if (isa<GlobalValue>(val))
@@ -2392,9 +2383,6 @@ break
             }
             else
             {
-                if(val->getType()->isIntegerTy()) {
-                    cout << val->getType()->getIntegerBitWidth() << endl;
-                }
                 return values[val];
             }
         }
@@ -2444,19 +2432,12 @@ break
             {
                 if(!gv.isDeclaration()) {
                     auto val = getConstantValue(gv.getInitializer(), _module);
-                    auto cda = dyn_cast<ConstantDataArray>(gv.getInitializer());
-                    if (cda) {
-                        cout << cda->getAsCString().str() << " str value" << endl;
-                    }
+//                    auto cda = dyn_cast<ConstantDataArray>(gv.getInitializer());
+//                    if (cda) {
+//                        cout << cda->getAsCString().str() << " str value" << endl;
+//                    }
                     setGlobalVariableValue(&gv, val);
                 }
-//                else {
-//                    int typeID = gv.getType()->getTypeID();
-//                    int length = gv.getType()->getIntegerBitWidth();
-//                    GenericValue val;
-//                    val.IntVal = APInt(10, 100);
-//                    setGlobalVariableValue(&gv, val);
-//                }
             }
 
             IL = new IntrinsicLowering(*(_module->getDataLayout())); // **** add *
@@ -2477,13 +2458,10 @@ break
             ArrayRef<GenericValue> aargs = argVals.slice(
                     0,
                     std::min(argVals.size(), ac));
-
-            cout << ac << " and " << aargs.size() << endl;
             callFunction(f, aargs);
 
             run();
 
-            cout << "inside the runFunction " + _exitValue.IntVal.toString(10, 0) << endl;
             return _exitValue;
         }
 
@@ -2522,39 +2500,10 @@ break
                     break;
                 }
                 Instruction &i = *ec.curInst++;
-                logInstruction(&i);
-                cout << "instruction begins" << endl;
+                cout << " log info: " ;
                 i.dump();
-                cout << _globalEc.getOperandValue(i.getOperand(0), ec).IntVal.toString(10, 0) << endl;
-                cout << "the value" << endl;
-                i.getOperand(0)->dump();
-                if (auto *op = dyn_cast<CallInst>(&i)) {
-                    Function *fn = op->getCalledFunction();
-                    StringRef fn_name = fn->getName();
-                    cout << fn_name.str() << endl;
-//                    if (fn_name.str() == "printf") {
-//                        CallSite cs(cast<Value>(op));
-//                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
-//                        auto t1 = cast<GlobalVariable>(t0->getOperand(0))->getInitializer();
-//                        auto t2 = cast<ConstantDataArray>(t1)->getAsCString();
-//                        cout << t2.str() << endl;
-//                    }
-//                    else if(fn_name.str() == "function_1f90") {
-//                        GenericValue dest = this->runFunction(fn);
-//                        cout << dest.IntVal.toString(10, 0) << endl;
-//                        _globalEc.setValue(&i, dest);
-//                        cout << i.getOperand(0)->getName().str() << endl;
-//                        cout << _globalEc.getOperandValue(i.getOperand(0), ec).IntVal.toString(10, 0) << endl;
-//                        cout << "test result" << endl;
-//                    }
-//                    else if (fn_name.str() == "gnutls_credentials_set") {
-//                        CallSite cs(cast<Value>(op));
-//                        auto t0 = cast<ConstantExpr>(cs.getArgument(0));
-//                        auto t1 = cast<ConstantExpr>(cs.getArgument(1));
-//                        auto t2 = cast<ConstantExpr>(cs.getArgument(2));
-//                        gnutls_credentials_set(t0, t1, t2);
-//                    }
-                }
+                cout << endl;
+                logInstruction(&i);
                 visit(i);
             }
         }
@@ -2794,15 +2743,15 @@ break
                 llvm::Type* retT,
                 llvm::GenericValue res)
         {
+            cout << "before" << endl;
             _ecStackRetired.emplace_back(_ecStack.back());
             _ecStack.pop_back();
 
-            cout << "this method has been invoked." << endl;
+            cout << res.IntVal.toString(10, 0) << endl;
             // Finished main. Put result into exit code...
             //
             if (_ecStack.empty())
             {
-                cout << "empty." << endl;
                 if (retT && !retT->isVoidTy())
                 {
                     _exitValue = res;
@@ -2819,12 +2768,8 @@ break
             else
             {
                 LocalExecutionContext& callingEc = _ecStack.back();
-                cout << "not empty" << endl;
-                res.IntVal.dump();
                 if (Instruction* I = callingEc.caller.getInstruction())
                 {
-                    I->dump();
-                    cout << "save result" << endl;
                     // Save result...
                     if (!callingEc.caller.getType()->isVoidTy())
                     {
@@ -2850,12 +2795,9 @@ break
             // Save away the return value... (if we are not 'ret void')
             if (I.getNumOperands())
             {
-                GenericValue tmp = _globalEc.getOperandValue(I.getOperand(0), ec);
                 retTy = I.getReturnValue()->getType();
                 res = _globalEc.getOperandValue(I.getReturnValue(), ec);
             }
-            cout << res.IntVal.toString(10, 0) << endl;
-
             popStackAndReturnValueToCaller(retTy, res);
         }
 
@@ -3069,7 +3011,7 @@ break
             GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
             GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
             GenericValue res;
-
+            cout << op0.IntVal.getBitWidth() << op1.IntVal.getBitWidth() << endl;
             switch (I.getPredicate())
             {
                 case ICmpInst::ICMP_EQ:  res = executeICMP_EQ(op0,  op1, ty); break;
@@ -3195,19 +3137,33 @@ break
 
         void LlvmIrEmulator::visitLoadInst(llvm::LoadInst& I)
         {
+            cout << "Load Instruction: " << endl;
+            I.dump();
+
             LocalExecutionContext& ec = _ecStack.back();
             GenericValue res;
 
             if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
             {
                 res = _globalEc.getGlobal(gv);
+                cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
+                cout << endl;
             }
             else
             {
                 GenericValue src = _globalEc.getOperandValue(I.getPointerOperand(), ec);
                 GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(src));
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
+                cout << "Load Address: " << ptrVal << endl;
+
                 res = _globalEc.getMemory(ptrVal);
+                cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
+                cout << endl;
+                Value* PO = I.getPointerOperand();
+                // since we know it's a pointer Operand we can cast safely here
+                PointerType* PT = cast<PointerType>(PO->getType());
+                PT->dump(); // will print i8*
+                cout << res.IntVal.getBitWidth() << endl;
             }
 
             _globalEc.setValue(&I, res);
@@ -3215,19 +3171,25 @@ break
 
         void LlvmIrEmulator::visitStoreInst(llvm::StoreInst& I)
         {
+            cout << "Store Instruction: " << endl;
+            I.dump();
             LocalExecutionContext& ec = _ecStack.back();
             GenericValue val = _globalEc.getOperandValue(I.getOperand(0), ec);
 
             if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
             {
                 _globalEc.setGlobal(gv, val);
+                cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
             }
             else
             {
                 GenericValue dst = _globalEc.getOperandValue(I.getPointerOperand(), ec);
                 GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(dst));
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
+                cout << "Store Address: " << ptrVal << endl;
                 _globalEc.setMemory(ptrVal, val);
+                cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
+                cout << endl;
             }
         }
 
@@ -3277,49 +3239,33 @@ break
 
             CallEntry ce;
             ce.calledValue = I.getCalledValue();
-            cout << "before op" << endl;
+
+            if(!cf->isDeclaration()) {
+                CallSite cs(&I);
+                ec.caller = cs;
+                if (cf->arg_empty()) {
+                    llvm::ArrayRef<llvm::GenericValue> argVals;
+                    _globalEc.setValue(&I, runFunction(cf, argVals));
+                }
+                else {
+                    int size = cf->arg_size();
+                    llvm::GenericValue* args = new llvm::GenericValue[size];
+                    for(int index = 0; index < size; index++) {
+                        args[index] = _globalEc.getOperandValue(I.getOperand(index), ec);
+                    }
+                    ArrayRef<GenericValue> argVals(args, size);
+                    GenericValue res = runFunction(cf, argVals);
+//                    _globalEc.setValue(&I, res);
+                }
+            }
             GenericValue Dest;
-            for (auto aIt = I.op_begin(), eIt = I.op_end()-I.getNumArgOperands(); aIt != eIt; ++aIt) // **** change arg to op
+            for (auto aIt = I.op_begin(), eIt = I.op_begin() + I.getNumArgOperands(); aIt != eIt; ++aIt) // **** change arg to op -I.getNumArgOperands()
             {
                 Value* val = *aIt;
-                cout << "calledValue" << endl;
-                CallSite cs(&I);
-                cout << cs.arg_size() << endl;
-
-                Function* function = cs.getCalledFunction();
-                if(!function->isDeclaration()) {
-                    cout << "declaration" << endl;
-                    ec.caller = cs;
-                    if (cs.arg_empty()) {
-                        llvm::ArrayRef<llvm::GenericValue> argVals;
-                        setGlobalVariableValue(reinterpret_cast<GlobalVariable *>(function),
-                                               runFunction(function, argVals));
-                    }
-                    else {
-                        int size = function->arg_size();
-                        llvm::GenericValue* args = new llvm::GenericValue[size];
-                        llvm::ArrayRef<llvm::GenericValue> argVals;
-                        cout << size << endl;
-                        int index = 0;
-                        for(auto i = function->arg_begin(); i != function->arg_end(); i++) {
-//                            args[index] = _globalEc.getOperandValue(i, ec);
-//                            index ++;
-                            i->dump();
-                            _globalEc.getOperandValue(i, ec).IntVal.dump();
-                        }
-                        setGlobalVariableValue(reinterpret_cast<GlobalVariable *>(function),
-                                               runFunction(function, reinterpret_cast<ArrayRef<GenericValue> &&>(args)));
-                    }
-                }
                 ce.calledArguments.push_back(_globalEc.getOperandValue(val, ec));
-                Dest = _globalEc.getOperandValue(val, ec);
             }
 
-
             _calls.push_back(ce);
-            cout << Dest.IntVal.toString(10, 0) << endl;
-            _globalEc.setValue(&I, Dest);
-            cout << "test1" << endl;
         }
 
         void LlvmIrEmulator::visitInvokeInst(llvm::InvokeInst& I)

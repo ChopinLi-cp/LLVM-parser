@@ -52,7 +52,10 @@ namespace retdec {
             ~AllocaHolder()
             {
                 for (void *Allocation : Allocations)
+                {
+                    Allocation = NULL;
                     free(Allocation);
+                }
             }
 
             void add(void *Mem)
