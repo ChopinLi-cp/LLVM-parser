@@ -1447,6 +1447,7 @@ break
                     LocalExecutionContext &SF,
                     GlobalExecutionContext& GC)
             {
+                cout << "This is bitcast operation" << endl;
                 // This instruction supports bitwise conversion of vectors to integers and
                 // to vectors of other types (as long as they have the same size)
                 Type *SrcTy = SrcVal->getType();
@@ -1617,7 +1618,6 @@ break
                     // scalar src bitcast to scalar dst
                     if (DstTy->isPointerTy())
                     {
-                        cout << " here" << endl;
                         // assert(SrcTy->isPointerTy() && "Invalid BitCast");
                         Dest.PointerVal = Src.PointerVal;
                     }
@@ -2316,6 +2316,7 @@ break
             }
 
             auto fIt = memory.find(addr);
+            cout << "getMemory\t" << (fIt != memory.end()) << endl;
             return fIt != memory.end() ? fIt->second : GenericValue();
         }
 
@@ -2370,6 +2371,7 @@ break
         {
             if (ConstantExpr* ce = dyn_cast<ConstantExpr>(val))
             {
+                cout << "It is a constantExpr" << endl;
                 return getConstantExprValue(ce, ec, *this);
             }
             else if (Constant* cpv = dyn_cast<Constant>(val))
@@ -2437,6 +2439,8 @@ break
 //                        cout << cda->getAsCString().str() << " str value" << endl;
 //                    }
                     setGlobalVariableValue(&gv, val);
+                    uint64_t ptrVal = reinterpret_cast<uint64_t>(&gv);
+                    _globalEc.setMemory(ptrVal, val);
                 }
             }
 
@@ -2500,7 +2504,7 @@ break
                     break;
                 }
                 Instruction &i = *ec.curInst++;
-                cout << " log info: " ;
+                cout << " log info: "  << endl;
                 i.dump();
                 cout << endl;
                 logInstruction(&i);
@@ -2743,11 +2747,11 @@ break
                 llvm::Type* retT,
                 llvm::GenericValue res)
         {
-            cout << "before" << endl;
+//            cout << "before" << endl;
             _ecStackRetired.emplace_back(_ecStack.back());
             _ecStack.pop_back();
 
-            cout << res.IntVal.toString(10, 0) << endl;
+//            cout << res.IntVal.toString(10, 0) << endl;
             // Finished main. Put result into exit code...
             //
             if (_ecStack.empty())
@@ -3011,7 +3015,7 @@ break
             GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
             GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
             GenericValue res;
-            cout << op0.IntVal.getBitWidth() << op1.IntVal.getBitWidth() << endl;
+            cout << op0.IntVal.getBitWidth() << " " << op1.IntVal.getBitWidth() << endl;
             switch (I.getPredicate())
             {
                 case ICmpInst::ICMP_EQ:  res = executeICMP_EQ(op0,  op1, ty); break;
@@ -3137,6 +3141,7 @@ break
 
         void LlvmIrEmulator::visitLoadInst(llvm::LoadInst& I)
         {
+            const DataLayout *DL = _module->getDataLayout();
             cout << "Load Instruction: " << endl;
             I.dump();
 
@@ -3155,7 +3160,8 @@ break
                 GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(src));
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
                 cout << "Load Address: " << ptrVal << endl;
-
+                cout << ptr->PointerVal << endl;
+                I.getPointerOperand()->dump();
                 res = _globalEc.getMemory(ptrVal);
                 cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
                 cout << endl;
@@ -3163,7 +3169,15 @@ break
                 // since we know it's a pointer Operand we can cast safely here
                 PointerType* PT = cast<PointerType>(PO->getType());
                 PT->dump(); // will print i8*
+                int length = DL->getTypeSizeInBits(PT->getPointerElementType());
+                cout <<  length << endl;
                 cout << res.IntVal.getBitWidth() << endl;
+                if(PT->getPointerElementType()->isIntegerTy()) {
+                    res.IntVal = res.IntVal.sextOrTrunc(length);
+                }
+                //if (res.IntVal.getBitWidth() < 8) {
+                //    res.IntVal = APInt(8, res.IntVal.getZExtValue());
+                //}
             }
 
             _globalEc.setValue(&I, res);
@@ -3465,6 +3479,8 @@ break
         void LlvmIrEmulator::visitBitCastInst(llvm::BitCastInst& I)
         {
             LocalExecutionContext& ec = _ecStack.back();
+            cout << "bitcast" << endl;
+            I.dump();
             _globalEc.setValue(&I, executeBitCastInst(I.getOperand(0), I.getType(), ec, _globalEc));
         }
 
