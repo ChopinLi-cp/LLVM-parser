@@ -32,6 +32,7 @@ namespace retdec {
             LlvmIrEmulatorError(const std::string& message) :
                     _whatMessage(message)
             {
+                std::cout << message << std::endl;
                 assert(false);
             }
 

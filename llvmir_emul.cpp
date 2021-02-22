@@ -32,8 +32,10 @@
 #include <llvm/IRReader/IRReader.h>
 
 #include "llvmir-emul.h"
+#include <llvm/Analysis/LoopInfo.h>
 
 #include <fstream>
+#include <time.h>
 
 using namespace llvm;
 using namespace std;
@@ -1076,7 +1078,7 @@ break
                 {
                     IntegerType *DITy = cast<IntegerType>(DstTy);
                     unsigned DBitWidth = DITy->getBitWidth();
-                    Dest.IntVal = Src.IntVal.trunc(DBitWidth);
+                    Dest.IntVal = Src.IntVal.zextOrTrunc(DBitWidth); // !!!!
                 }
                 return Dest;
             }
@@ -2498,6 +2500,8 @@ break
         }
 
         void LlvmIrEmulator::run() {
+            clock_t start, end;
+            start = clock();
             while (!_ecStack.empty()) {
                 auto &ec = _ecStack.back();
                 if (ec.curInst == ec.curBB->end()) {
@@ -2509,6 +2513,9 @@ break
                 cout << endl;
                 logInstruction(&i);
                 visit(i);
+                end = clock();
+                if (double(end-start)/CLOCKS_PER_SEC>10)
+                    break;
             }
         }
 
@@ -2807,7 +2814,8 @@ break
 
         void LlvmIrEmulator::visitUnreachableInst(llvm::UnreachableInst& I)
         {
-            throw LlvmIrEmulatorError("Program executed an 'unreachable' instruction!");
+            cout << "Program executed an 'unreachable' instruction!" << endl;
+            // throw LlvmIrEmulatorError("Program executed an 'unreachable' instruction!"); !!!!
         }
 
         void LlvmIrEmulator::visitBranchInst(llvm::BranchInst& I)
@@ -3152,6 +3160,7 @@ break
             {
                 res = _globalEc.getGlobal(gv);
                 cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
+                s += res.IntVal.toString(10, 0) + ";";
                 cout << endl;
             }
             else
@@ -3160,10 +3169,11 @@ break
                 GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(src));
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
                 cout << "Load Address: " << ptrVal << endl;
-                cout << ptr->PointerVal << endl;
-                I.getPointerOperand()->dump();
+//                cout << ptr->PointerVal << endl;
+//                I.getPointerOperand()->dump();
                 res = _globalEc.getMemory(ptrVal);
                 cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
+                s += res.IntVal.toString(10, 0) + ";";
                 cout << endl;
                 Value* PO = I.getPointerOperand();
                 // since we know it's a pointer Operand we can cast safely here
@@ -3194,6 +3204,7 @@ break
             {
                 _globalEc.setGlobal(gv, val);
                 cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
+                s += val.IntVal.toString(10, 0) + ";";
             }
             else
             {
@@ -3203,8 +3214,13 @@ break
                 cout << "Store Address: " << ptrVal << endl;
                 _globalEc.setMemory(ptrVal, val);
                 cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
+                s += val.IntVal.toString(10, 0) +  ";";
                 cout << endl;
             }
+        }
+
+        string LlvmIrEmulator::similairtyString() {
+            return this->s;
         }
 
 //
@@ -3253,7 +3269,8 @@ break
 
             CallEntry ce;
             ce.calledValue = I.getCalledValue();
-
+//            CallSite cs(&I);
+//            ec.caller = cs;
             if(!cf->isDeclaration()) {
                 CallSite cs(&I);
                 ec.caller = cs;
@@ -3270,6 +3287,15 @@ break
                     ArrayRef<GenericValue> argVals(args, size);
                     GenericValue res = runFunction(cf, argVals);
 //                    _globalEc.setValue(&I, res);
+                }
+            }
+            else {
+                cf->dump();
+                if(cf->getReturnType()->isIntegerTy()) {
+                    const DataLayout *DL = _module->getDataLayout();
+                    GenericValue res;
+                    res.IntVal = res.IntVal.sextOrTrunc(DL->getTypeSizeInBits(cf->getReturnType()));
+                    _globalEc.setValue(&I, res);
                 }
             }
             GenericValue Dest;
@@ -3530,8 +3556,9 @@ break
 
         void LlvmIrEmulator::visitInsertValueInst(llvm::InsertValueInst& I)
         {
-            assert(false && "Handling of InsertValueInst is not implemented");
-            throw LlvmIrEmulatorError("Handling of InsertValueInst is not implemented");
+            cout << "Handling of InsertValueInst is not implemented" << endl;
+            // assert(false && "Handling of InsertValueInst is not implemented");
+            // throw LlvmIrEmulatorError("Handling of InsertValueInst is not implemented");
         }
 
         void LlvmIrEmulator::visitPHINode(llvm::PHINode& PN)

@@ -117,6 +117,7 @@ namespace retdec {
             /// library after emulation is done, so we need to preserve it for all
             /// emulated objects and not to thorw it away after local frame is left.
             std::map<llvm::Value*, llvm::GenericValue> values;
+
         };
 
         class LocalExecutionContext
@@ -241,6 +242,7 @@ namespace retdec {
             void visitExtractValueInst(llvm::ExtractValueInst& I);
             void visitInsertValueInst(llvm::InsertValueInst& I);
             void visitInstruction(llvm::Instruction& I);
+            std::string similairtyString();
 
         private:
             void run();
@@ -275,6 +277,8 @@ namespace retdec {
 
             /// Intrinsic calls are lowered and not logged here.
             std::list<CallEntry> _calls;
+
+            std::string s;
         };
 
     } // llvmir_emul
