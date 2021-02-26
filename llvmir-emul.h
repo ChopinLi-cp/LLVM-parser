@@ -18,6 +18,9 @@
 #include <llvm/IR/Module.h>
 
 #include "exceptions.h"
+#include <llvm/Analysis/LoopInfo.h>
+#include <llvm/Analysis/LoopInfoImpl.h>
+#include <llvm/Analysis/DomPrinter.h>
 
 namespace retdec {
     namespace llvmir_emul {
@@ -279,6 +282,11 @@ namespace retdec {
             std::list<CallEntry> _calls;
 
             std::string s;
+
+            llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* LoopInfoBase;
+            llvm::LoopBase<llvm::BasicBlock, llvm::Loop>* LoopBase;
+            llvm::Loop* Loop;
+            int loopNums;
         };
 
     } // llvmir_emul

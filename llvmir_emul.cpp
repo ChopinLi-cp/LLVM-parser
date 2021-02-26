@@ -32,7 +32,6 @@
 #include <llvm/IRReader/IRReader.h>
 
 #include "llvmir-emul.h"
-#include <llvm/Analysis/LoopInfo.h>
 
 #include <fstream>
 #include <time.h>
@@ -2464,9 +2463,30 @@ break
             ArrayRef<GenericValue> aargs = argVals.slice(
                     0,
                     std::min(argVals.size(), ac));
+
+            llvm::DominatorTree DT = llvm::DominatorTree();
+            DT.recalculate(*f);
+            LoopInfoBase = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
+            LoopBase = new llvm::LoopBase<llvm::BasicBlock, llvm::Loop>();
+            Loop = new llvm::Loop();
+            LoopInfoBase->Analyze(DT);
+            LoopBase->getBlocks();
+//            LoopBase->verifyLoop();
+//            Loop.dump();
+            string os;
+            llvm::raw_string_ostream *OS = new llvm::raw_string_ostream(os);
+            LoopInfoBase->print(*OS);
+            cout << OS->str() << endl;
+
             callFunction(f, aargs);
 
+//            clock_t start, end;
+//            start = clock();
             run();
+//            end = clock();
+//            if (double(end-start)/CLOCKS_PER_SEC>5){
+//                _ecStack.pop_back();
+//            }
 
             return _exitValue;
         }
@@ -2500,8 +2520,7 @@ break
         }
 
         void LlvmIrEmulator::run() {
-            clock_t start, end;
-            start = clock();
+
             while (!_ecStack.empty()) {
                 auto &ec = _ecStack.back();
                 if (ec.curInst == ec.curBB->end()) {
@@ -2511,12 +2530,42 @@ break
                 cout << " log info: "  << endl;
                 i.dump();
                 cout << endl;
+                // if(LoopInfo->isLoopHeader(ec.curBB)) {
+                //     loopNums ++ ;
+                //     cout << "loopHeader" <<endl;
+                // }
+                if(!LoopInfoBase->getLoopFor(ec.curBB))
+                {
+                    string os;
+                    raw_string_ostream *rso = new raw_string_ostream(os);
+//                    cout << LoopBase->getBlocks().size() << "LoopBase" << endl;
+                    cout << os << endl;
+//                    if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
+//                        loopNums ++ ;
+//                    else if(SwitchInst* ri = dyn_cast<llvm::SwitchInst>(&i))
+//                        loopNums ++ ;
+//                    else if(CallInst* ri = dyn_cast<llvm::CallInst>(&i))
+//                        loopNums ++ ;
+//                    else if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i))
+//                        loopNums ++ ;
+                    cout << "LoopFor: " << loopNums  << endl;
+                }
+                if(loopNums >= 30) {
+                    cout << "over flow" << endl;
+                    loopNums = 0;
+                    _ecStack.pop_back();
+                    if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
+                        continue;
+                    else{
+                        if(!_ecStack.empty())
+                            _ecStack.pop_back();
+                    }
+                    break;
+                }
                 logInstruction(&i);
                 visit(i);
-                end = clock();
-                if (double(end-start)/CLOCKS_PER_SEC>10)
-                    break;
             }
+            cout << "running ends" << endl;
         }
 
         void LlvmIrEmulator::logInstruction(llvm::Instruction* i)
