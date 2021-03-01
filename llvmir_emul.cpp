@@ -957,6 +957,7 @@ break
                     LocalExecutionContext& SF,
                     GlobalExecutionContext& GC)
             {
+                Dest->dump();
                 BasicBlock *PrevBB = SF.curBB;      // Remember where we came from...
                 SF.curBB   = Dest;                  // Update CurBB to branch destination
                 SF.curInst = SF.curBB->begin();     // Update new instruction ptr...
@@ -969,6 +970,7 @@ break
                 // Loop over all of the PHI nodes in the current block, reading their inputs.
                 std::vector<GenericValue> ResultValues;
 
+                SF.curInst->dump();
                 for (; PHINode *PN = dyn_cast<PHINode>(SF.curInst); ++SF.curInst)
                 {
                     // Search for the value corresponding to this previous bb...
@@ -2444,8 +2446,8 @@ break
                     _globalEc.setMemory(ptrVal, val);
                 }
             }
-
             IL = new IntrinsicLowering(*(_module->getDataLayout())); // **** add *
+            cout << "initialization" << endl;
         }
 
         LlvmIrEmulator::~LlvmIrEmulator()
@@ -2464,19 +2466,7 @@ break
                     0,
                     std::min(argVals.size(), ac));
 
-            llvm::DominatorTree DT = llvm::DominatorTree();
-            DT.recalculate(*f);
-            LoopInfoBase = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
-            LoopBase = new llvm::LoopBase<llvm::BasicBlock, llvm::Loop>();
-            Loop = new llvm::Loop();
-            LoopInfoBase->Analyze(DT);
-            LoopBase->getBlocks();
-//            LoopBase->verifyLoop();
-//            Loop.dump();
-            string os;
-            llvm::raw_string_ostream *OS = new llvm::raw_string_ostream(os);
-            LoopInfoBase->print(*OS);
-            cout << OS->str() << endl;
+            cout << "test" << endl;
 
             callFunction(f, aargs);
 
@@ -2502,6 +2492,7 @@ break
             _ecStack.emplace_back();
             auto& ec = _ecStack.back();
             ec.curFunction = f;
+            ec.loopNums = 0;
 
             if (f->isDeclaration())
             {
@@ -2530,38 +2521,92 @@ break
                 cout << " log info: "  << endl;
                 i.dump();
                 cout << endl;
+                if(ec.analyze == false) {
+                    llvm::DominatorTree DT = llvm::DominatorTree();
+                    DT.recalculate(*ec.curFunction);
+                    ec.LoopInfoBase = new llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>();
+                    ec.LoopBase = new llvm::LoopBase<llvm::BasicBlock, llvm::Loop>();
+                    ec.LoopInfoBase->Analyze(DT);
+                    string os;
+                    llvm::raw_string_ostream *OS = new llvm::raw_string_ostream(os);
+                    ec.LoopInfoBase->print(*OS);
+                    cout << OS->str() << endl;
+                    ec.analyze = true;
+                }
                 // if(LoopInfo->isLoopHeader(ec.curBB)) {
                 //     loopNums ++ ;
                 //     cout << "loopHeader" <<endl;
                 // }
-                if(!LoopInfoBase->getLoopFor(ec.curBB))
+                ec.Loop = ec.LoopInfoBase->getLoopFor(ec.curBB);
+                cout << "depth" << ec.LoopInfoBase->getLoopDepth(ec.curBB) << endl;
+                if(ec.Loop != nullptr) {
+                    ec.Loop->dump();
+                    cout << "couldDump" << endl;
+                }
+//                Loop->dump();
+                bool flag = 0;
+//                if(!Loop && Loop->contains(ec.curBB) && (Loop->isLoopExiting(ec.curBB)))
+//                    || LoopBase->getHeader() == ec.curBB ||
+//                LoopBase->getLoopLatch() == ec.curBB))
+                if(ec.Loop != nullptr && ec.Loop->isLoopExiting(ec.curBB))
                 {
                     string os;
                     raw_string_ostream *rso = new raw_string_ostream(os);
-//                    cout << LoopBase->getBlocks().size() << "LoopBase" << endl;
+                    cout << ec.LoopBase->getBlocks().size() << "LoopBase" << endl;
                     cout << os << endl;
+                    cout << "LoopFor: " << ec.loopNums  << endl;
+//                    loopNums ++;
 //                    if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
 //                        loopNums ++ ;
 //                    else if(SwitchInst* ri = dyn_cast<llvm::SwitchInst>(&i))
 //                        loopNums ++ ;
-//                    else if(CallInst* ri = dyn_cast<llvm::CallInst>(&i))
+//                    else if(CallInst* ri = dyn_cast<llvm::CallInst>(&i)){
 //                        loopNums ++ ;
+//                        flag = 1;
+//                    }
 //                    else if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i))
 //                        loopNums ++ ;
-                    cout << "LoopFor: " << loopNums  << endl;
+                    if(ec.curInst == ec.curBB->end())
+                        ec.loopNums ++ ;
+                    cout << "LoopFor: " << ec.loopNums  << endl;
                 }
-                if(loopNums >= 30) {
+
+                if(ec.loopNums >= 2) {
                     cout << "over flow" << endl;
-                    loopNums = 0;
-                    _ecStack.pop_back();
-                    if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
+                    ec.loopNums = 0;
+                    cout << _ecStack.size() << "size is" << endl;
+                    if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i)) {
+                        BasicBlock *dest;
+                        ri->dump();
+                        dest = ri->getSuccessor(1);
+                        if (!ri->isUnconditional()) {
+                            Value *cond = ri->getCondition();
+                            if (_globalEc.getOperandValue(cond, ec).IntVal == false) {
+                                dest = ri->getSuccessor(0);
+                            }
+                        }
+                        dest->dump();
+                        switchToNewBasicBlock(dest, ec, _globalEc);
                         continue;
-                    else{
-                        if(!_ecStack.empty())
-                            _ecStack.pop_back();
                     }
-                    break;
+                    if(_ecStack.size() > 1) {
+                        if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
+                            break;
+                        _ecStack.pop_back();
+                        cout << _ecStack.size() << "size is" << endl;
+//                        ec = _ecStack.back();
+//                        if (ec.curInst == ec.curBB->end()) {
+//                            break;
+//                        }
+                    }
+
+//                    else{
+//                        if(!_ecStack.empty())
+//                            _ecStack.pop_back();
+//                    }
+//                    break;
                 }
+//                Instruction &cur = *ec.curInst;
                 logInstruction(&i);
                 visit(i);
             }
@@ -3222,8 +3267,6 @@ break
 //                I.getPointerOperand()->dump();
                 res = _globalEc.getMemory(ptrVal);
                 cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
-                s += res.IntVal.toString(10, 0) + ";";
-                cout << endl;
                 Value* PO = I.getPointerOperand();
                 // since we know it's a pointer Operand we can cast safely here
                 PointerType* PT = cast<PointerType>(PO->getType());
@@ -3237,6 +3280,13 @@ break
                 //if (res.IntVal.getBitWidth() < 8) {
                 //    res.IntVal = APInt(8, res.IntVal.getZExtValue());
                 //}
+//                cout << I.getPointerOperand()->hasName() << endl;
+//                if(!I.getPointerOperand()->hasName()) {
+//                    cout << "stack_var!" << endl;
+//                    return;
+//                }
+                s += res.IntVal.toString(10, 0) + ";";
+                cout << endl;
             }
 
             _globalEc.setValue(&I, res);
@@ -3252,6 +3302,14 @@ break
             if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
             {
                 _globalEc.setGlobal(gv, val);
+                if(I.isVolatile()) {
+                    cout << "volatile!"<< endl;
+                    return;
+                }
+                if(I.isSimple() == false) {
+                    cout << "simple" << endl;
+                    return;
+                }
                 cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
                 s += val.IntVal.toString(10, 0) + ";";
             }
@@ -3262,6 +3320,16 @@ break
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
                 cout << "Store Address: " << ptrVal << endl;
                 _globalEc.setMemory(ptrVal, val);
+                if(I.isSimple() == false) {
+                    cout << "simple" << endl;
+                    return;
+                }
+                if(I.getOperand(1)->getName().startswith("stack_var") ||
+                    I.getOperand(1)->getName().startswith("rsp") ||
+                    I.getOperand(1)->getName().startswith("rbp")) {
+                    cout << "stack_var!" << endl;
+                    return;
+                }
                 cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
                 s += val.IntVal.toString(10, 0) +  ";";
                 cout << endl;
