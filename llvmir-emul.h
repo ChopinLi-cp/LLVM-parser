@@ -16,6 +16,7 @@
 #include <llvm/IR/CallSite.h>
 #include <llvm/IR/InstVisitor.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Dominators.h>
 
 #include "exceptions.h"
 #include <llvm/Analysis/LoopInfo.h>
@@ -146,6 +147,11 @@ namespace retdec {
             llvm::CallSite caller;
             /// Track memory allocated by alloca
             AllocaHolder allocas;
+            llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* LoopInfoBase = nullptr;
+            llvm::LoopBase<llvm::BasicBlock, llvm::Loop>* LoopBase = nullptr;
+            llvm::Loop* Loop = nullptr;
+            int loopNums = 0;
+            bool analyze = false;
         };
 
         class LlvmIrEmulator : public llvm::InstVisitor<LlvmIrEmulator>
@@ -283,10 +289,7 @@ namespace retdec {
 
             std::string s;
 
-            llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* LoopInfoBase;
-            llvm::LoopBase<llvm::BasicBlock, llvm::Loop>* LoopBase;
-            llvm::Loop* Loop;
-            int loopNums;
+//            llvm::DominatorTree DT = llvm::DominatorTree();
         };
 
     } // llvmir_emul
