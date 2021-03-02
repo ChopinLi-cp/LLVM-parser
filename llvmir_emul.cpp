@@ -87,6 +87,22 @@ namespace retdec {
                 }
             }
 
+            bool isNum(string str)
+            {
+                stringstream sin(str);
+                double d;
+                char c;
+                if(!(sin >> d))
+                {
+                    return false;
+                }
+                if (sin >> c)
+                {
+                    return false;
+                }
+                return true;
+            }
+
             llvm::GenericValue getRandomValue(int type, int length)
             {
                 llvm::GenericValue gv;
@@ -3254,8 +3270,16 @@ break
             {
                 res = _globalEc.getGlobal(gv);
                 cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
-                s += res.IntVal.toString(10, 0) + ";";
-                cout << endl;
+                if(I.isSimple() == false) {
+                    cout << "simple" << endl;
+                }
+                else if(I.getName().empty()) {
+                    cout << "stack_var!" << endl;
+                }
+                else {
+                    s += res.IntVal.toString(10, 0) + ";";
+                    cout << endl;
+                }
             }
             else
             {
@@ -3280,12 +3304,17 @@ break
                 //if (res.IntVal.getBitWidth() < 8) {
                 //    res.IntVal = APInt(8, res.IntVal.getZExtValue());
                 //}
+
 //                cout << I.getPointerOperand()->hasName() << endl;
-//                if(!I.getPointerOperand()->hasName()) {
-//                    cout << "stack_var!" << endl;
-//                    return;
-//                }
-                s += res.IntVal.toString(10, 0) + ";";
+                if(I.isSimple() == false) {
+                    cout << "simple" << endl;
+                }
+                else if(I.getName().empty()) {
+                    cout << "stack_var!" << endl;
+                }
+                else{
+                    s += res.IntVal.toString(10, 0) + ";";
+                }
                 cout << endl;
             }
 
@@ -3310,6 +3339,22 @@ break
                     cout << "simple" << endl;
                     return;
                 }
+                if(I.getOperand(1)->getName().empty()) {
+                    cout << "stack_var!" << endl;
+                    return;
+                }
+                if(I.getOperand(1)->getName().startswith("stack_var") ||
+                   I.getOperand(1)->getName().startswith("rsp") ||
+                   I.getOperand(1)->getName().startswith("rbp") ||
+                   I.getOperand(1)->getName().startswith("rdx") ||
+                   I.getOperand(1)->getName().startswith("rsi") ||
+                   I.getOperand(1)->getName().startswith("rdi") ||
+                   I.getOperand(1)->getName().startswith("rax") ||
+                   I.getOperand(1)->getName().startswith("rcx") ||
+                   isNum(I.getOperand(1)->getName().str())) {
+                    cout << "stack_var!" << endl;
+                    return;
+                }
                 cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
                 s += val.IntVal.toString(10, 0) + ";";
             }
@@ -3326,10 +3371,20 @@ break
                 }
                 if(I.getOperand(1)->getName().startswith("stack_var") ||
                     I.getOperand(1)->getName().startswith("rsp") ||
-                    I.getOperand(1)->getName().startswith("rbp")) {
+                    I.getOperand(1)->getName().startswith("rbp") ||
+                    I.getOperand(1)->getName().startswith("rdx") ||
+                    I.getOperand(1)->getName().startswith("rsi") ||
+                    I.getOperand(1)->getName().startswith("rdi") ||
+                    I.getOperand(1)->getName().startswith("rax") ||
+                    I.getOperand(1)->getName().startswith("rcx") ||
+                    isNum(I.getOperand(1)->getName().str())) {
                     cout << "stack_var!" << endl;
                     return;
                 }
+//                if(I.getOperand(1)->getName().empty()) {
+//                    cout << "stack_var!" << endl;
+//                    return;
+//                }
                 cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
                 s += val.IntVal.toString(10, 0) +  ";";
                 cout << endl;
