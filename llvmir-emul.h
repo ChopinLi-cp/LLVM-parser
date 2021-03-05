@@ -152,6 +152,7 @@ namespace retdec {
             llvm::Loop* Loop = nullptr;
             int loopNums = 0;
             bool analyze = false;
+            bool flag = 0;
         };
 
         class LlvmIrEmulator : public llvm::InstVisitor<LlvmIrEmulator>

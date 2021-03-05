@@ -266,7 +266,7 @@ break
 
 #define IMPLEMENT_INTEGER_ICMP(OP, TY) \
     case Type::IntegerTyID:  \
-        Dest.IntVal = APInt(1,Src1.IntVal.OP(Src2.IntVal)); \
+        Dest.IntVal = APInt(1,Src1.IntVal.sextOrTrunc(1).OP(Src2.IntVal.sextOrTrunc(1))); \
         break;
 
 #define IMPLEMENT_VECTOR_INTEGER_ICMP(OP, TY)                              \
@@ -973,7 +973,6 @@ break
                     LocalExecutionContext& SF,
                     GlobalExecutionContext& GC)
             {
-                Dest->dump();
                 BasicBlock *PrevBB = SF.curBB;      // Remember where we came from...
                 SF.curBB   = Dest;                  // Update CurBB to branch destination
                 SF.curInst = SF.curBB->begin();     // Update new instruction ptr...
@@ -986,7 +985,6 @@ break
                 // Loop over all of the PHI nodes in the current block, reading their inputs.
                 std::vector<GenericValue> ResultValues;
 
-                SF.curInst->dump();
                 for (; PHINode *PN = dyn_cast<PHINode>(SF.curInst); ++SF.curInst)
                 {
                     // Search for the value corresponding to this previous bb...
@@ -1448,17 +1446,14 @@ break
                     GlobalExecutionContext& GC)
             {
                 GenericValue Dest, Src = GC.getOperandValue(SrcVal, SF);
-                cout << "test zip 10" << endl;
                 assert(DstTy->isPointerTy() && "Invalid PtrToInt instruction");
-                if(!SF.getModule()->empty()){
-                    uint32_t PtrSize = SF.getModule()->getDataLayout()->getPointerSizeInBits(); // **** change the second . to ->
-                    cout << "test zip 11" << endl;
+                if(!GC.getModule()->empty()){
+                    uint32_t PtrSize = GC.getModule()->getDataLayout()->getPointerSizeInBits(); // **** change the second . to ->
                     if (PtrSize != Src.IntVal.getBitWidth())
                     {
                         Src.IntVal = Src.IntVal.zextOrTrunc(PtrSize);
                     }
                 }
-                cout << "test zip 12" << endl;
                 Dest.PointerVal = PointerTy(static_cast<intptr_t>(Src.IntVal.getZExtValue()));
                 return Dest;
             }
@@ -1469,13 +1464,11 @@ break
                     LocalExecutionContext &SF,
                     GlobalExecutionContext& GC)
             {
-                cout << "This is bitcast operation" << endl;
                 // This instruction supports bitwise conversion of vectors to integers and
                 // to vectors of other types (as long as they have the same size)
                 Type *SrcTy = SrcVal->getType();
                 GenericValue Dest, Src = GC.getOperandValue(SrcVal, SF);
 
-                cout << SrcTy->getTypeID() << " + " << DstTy->getTypeID() << endl;
                 if ((SrcTy->getTypeID() == Type::VectorTyID)
                     || (DstTy->getTypeID() == Type::VectorTyID))
                 {
@@ -1689,7 +1682,6 @@ break
                         llvm_unreachable("Invalid Bitcast");
                     }
                 }
-                cout << Dest.PointerVal << endl;
                 return Dest;
             }
 
@@ -1727,7 +1719,6 @@ break
                     case Instruction::PtrToInt:
                         return executePtrToIntInst(CE->getOperand(0), CE->getType(), SF, GC);
                     case Instruction::IntToPtr:{
-                        cout << "test zip 9" << endl;
                         return executeIntToPtrInst(CE->getOperand(0), CE->getType(), SF, GC);
                     }
                     case Instruction::BitCast:
@@ -1788,7 +1779,6 @@ break
                         dbgs() << "Unhandled ConstantExpr: " << *CE << "\n";
                         llvm_unreachable("Unhandled ConstantExpr");
                 }
-                cout << "test zip 8" << endl;
                 return Dest;
             }
 
@@ -2396,7 +2386,6 @@ break
         {
             if (ConstantExpr* ce = dyn_cast<ConstantExpr>(val))
             {
-                cout << "It is a constantExpr" << endl;
                 return getConstantExprValue(ce, ec, *this);
             }
             else if (Constant* cpv = dyn_cast<Constant>(val))
@@ -2469,7 +2458,6 @@ break
                 }
             }
             IL = new IntrinsicLowering(*(_module->getDataLayout())); // **** add *
-            cout << "initialization" << endl;
         }
 
         LlvmIrEmulator::~LlvmIrEmulator()
@@ -2487,8 +2475,6 @@ break
             ArrayRef<GenericValue> aargs = argVals.slice(
                     0,
                     std::min(argVals.size(), ac));
-
-            cout << "test" << endl;
 
             callFunction(f, aargs);
 
@@ -2533,16 +2519,13 @@ break
         }
 
         void LlvmIrEmulator::run() {
-            cout << "running begins" << endl;
             while (!_ecStack.empty()) {
                 auto &ec = _ecStack.back();
                 if (ec.curInst == ec.curBB->end()) {
                     break;
                 }
                 Instruction &i = *ec.curInst++;
-                cout << " log info: "  << endl;
                 i.dump();
-                cout << endl;
                 if(ec.analyze == false) {
                     llvm::DominatorTree DT = llvm::DominatorTree();
                     DT.recalculate(*ec.curFunction);
@@ -2552,7 +2535,7 @@ break
                     string os;
                     llvm::raw_string_ostream *OS = new llvm::raw_string_ostream(os);
                     ec.LoopInfoBase->print(*OS);
-                    cout << OS->str() << endl;
+                    // cout << OS->str() << endl;
                     ec.analyze = true;
                 }
                 // if(LoopInfo->isLoopHeader(ec.curBB)) {
@@ -2560,13 +2543,12 @@ break
                 //     cout << "loopHeader" <<endl;
                 // }
                 ec.Loop = ec.LoopInfoBase->getLoopFor(ec.curBB);
-                cout << "depth" << ec.LoopInfoBase->getLoopDepth(ec.curBB) << endl;
-                if(ec.Loop != nullptr) {
-                    ec.Loop->dump();
-                    cout << "couldDump" << endl;
-                }
+//                cout << "depth" << ec.LoopInfoBase->getLoopDepth(ec.curBB) << endl;
+//                if(ec.Loop != nullptr) {
+//                    ec.Loop->dump();
+//                    cout << "couldDump" << endl;
+//                }
 //                Loop->dump();
-                bool flag = 0;
 //                if(!Loop && Loop->contains(ec.curBB) && (Loop->isLoopExiting(ec.curBB)))
 //                    || LoopBase->getHeader() == ec.curBB ||
 //                LoopBase->getLoopLatch() == ec.curBB))
@@ -2577,37 +2559,32 @@ break
                     cout << ec.LoopBase->getBlocks().size() << "LoopBase" << endl;
                     cout << os << endl;
                     cout << "LoopFor: " << ec.loopNums  << endl;
-//                    loopNums ++;
-//                    if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
-//                        loopNums ++ ;
-//                    else if(SwitchInst* ri = dyn_cast<llvm::SwitchInst>(&i))
-//                        loopNums ++ ;
-//                    else if(CallInst* ri = dyn_cast<llvm::CallInst>(&i)){
-//                        loopNums ++ ;
-//                        flag = 1;
-//                    }
-//                    else if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i))
-//                        loopNums ++ ;
                     if(ec.curInst == ec.curBB->end())
                         ec.loopNums ++ ;
-                    cout << "LoopFor: " << ec.loopNums  << endl;
+//                    cout << "LoopFor: " << ec.loopNums  << endl;
                 }
 
                 if(ec.loopNums >= 2) {
-                    cout << "over flow" << endl;
+                    cout << "LoopFor: " << ec.loopNums  << endl;
                     ec.loopNums = 0;
-                    cout << _ecStack.size() << "size is" << endl;
                     if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i)) {
                         BasicBlock *dest;
                         ri->dump();
-                        dest = ri->getSuccessor(1);
+                        dest = ri->getSuccessor(0);
                         if (!ri->isUnconditional()) {
+                            ri->dump();
                             Value *cond = ri->getCondition();
-                            if (_globalEc.getOperandValue(cond, ec).IntVal == false) {
-                                dest = ri->getSuccessor(0);
+                            _globalEc.getOperandValue(cond, ec).IntVal.dump();
+                            if (_globalEc.getOperandValue(cond, ec).IntVal == 0) {
+                                dest = ri->getSuccessor(ec.flag);
+                            }
+                            else {
+                                dest = ri->getSuccessor(ec.flag);
+                            }
+                            if(ec.analyze){
+                                ec.flag = 1 - ec.flag;
                             }
                         }
-                        dest->dump();
                         switchToNewBasicBlock(dest, ec, _globalEc);
                         continue;
                     }
@@ -2615,25 +2592,11 @@ break
                         if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
                             break;
                         _ecStack.pop_back();
-                        cout << _ecStack.size() << "size is" << endl;
-//                        ec = _ecStack.back();
-//                        if (ec.curInst == ec.curBB->end()) {
-//                            break;
-//                        }
                     }
-
-//                    else{
-//                        if(!_ecStack.empty())
-//                            _ecStack.pop_back();
-//                    }
-//                    break;
                 }
-//                Instruction &cur = *ec.curInst;
                 logInstruction(&i);
                 visit(i);
             }
-            cout << "running ends" << endl;
-            cout << _ecStack.size() << endl;
         }
 
         void LlvmIrEmulator::logInstruction(llvm::Instruction* i)
@@ -2871,11 +2834,9 @@ break
                 llvm::Type* retT,
                 llvm::GenericValue res)
         {
-//            cout << "before" << endl;
             _ecStackRetired.emplace_back(_ecStack.back());
             _ecStack.pop_back();
 
-//            cout << res.IntVal.toString(10, 0) << endl;
             // Finished main. Put result into exit code...
             //
             if (_ecStack.empty())
@@ -2911,7 +2872,6 @@ break
                     callingEc.caller = CallSite();
                 }
             }
-            cout << _exitValue.IntVal.toString(10, 0) << endl;
         }
 
         void LlvmIrEmulator::visitReturnInst(llvm::ReturnInst& I)
@@ -2932,8 +2892,8 @@ break
         void LlvmIrEmulator::visitUnreachableInst(llvm::UnreachableInst& I)
         {
             cout << "Program executed an 'unreachable' instruction!" << endl;
-            if(_ecStack.size()>1)
-                _ecStack.pop_back();
+//            if(_ecStack.size()>1)
+//                _ecStack.pop_back();
             // throw LlvmIrEmulatorError("Program executed an 'unreachable' instruction!"); !!!!
         }
 
@@ -2969,6 +2929,21 @@ break
                 if (executeICMP_EQ(condVal, caseVal, elTy).IntVal != 0)
                 {
                     dest = cast<BasicBlock>(Case.getCaseSuccessor());
+                    if(ec.loopNums == 0){
+                        cout << "cycle" << endl;
+                        int num = I.cases().end().getCaseIndex() - I.cases().begin().getCaseIndex();
+                        default_random_engine rand(time(NULL));
+                        uniform_int_distribution<int> rand1(0,num);
+                        int add = rand1(rand);
+                        cout << add << endl;
+                        for(int i=0; i<add ;i++){
+                            Case ++ ;
+                            if(Case == I.cases().begin())
+                                Case = I.cases().end();
+                        }
+                        dest = cast<BasicBlock>(Case.getCaseSuccessor());
+                        dest->dump();
+                    }
                     break;
                 }
             }
@@ -3142,7 +3117,6 @@ break
             GenericValue op0 = _globalEc.getOperandValue(I.getOperand(0), ec);
             GenericValue op1 = _globalEc.getOperandValue(I.getOperand(1), ec);
             GenericValue res;
-            cout << op0.IntVal.getBitWidth() << " " << op1.IntVal.getBitWidth() << endl;
             switch (I.getPredicate())
             {
                 case ICmpInst::ICMP_EQ:  res = executeICMP_EQ(op0,  op1, ty); break;
@@ -3268,9 +3242,9 @@ break
 
         void LlvmIrEmulator::visitLoadInst(llvm::LoadInst& I)
         {
-            const DataLayout *DL = _module->getDataLayout();
             cout << "Load Instruction: " << endl;
             I.dump();
+            const DataLayout *DL = _module->getDataLayout();
 
             LocalExecutionContext& ec = _ecStack.back();
             GenericValue res;
@@ -3323,14 +3297,11 @@ break
                 GenericValue *ptr = reinterpret_cast<GenericValue *>(GVTOP(src));
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
                 cout << "Load Address: " << ptrVal << endl;
-//                cout << ptr->PointerVal << endl;
-//                I.getPointerOperand()->dump();
                 res = _globalEc.getMemory(ptrVal);
                 cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
                 Value *PO = I.getPointerOperand();
                 // since we know it's a pointer Operand we can cast safely here
                 PointerType *PT = cast<PointerType>(PO->getType());
-                PT->dump(); // will print i8*
                 int length = DL->getTypeSizeInBits(PT->getPointerElementType());
                 cout << length << endl;
                 cout << res.IntVal.getBitWidth() << endl;
@@ -3340,8 +3311,6 @@ break
                 //if (res.IntVal.getBitWidth() < 8) {
                 //    res.IntVal = APInt(8, res.IntVal.getZExtValue());
                 //}
-
-                cout << I.getPointerOperand()->getName().str() << endl;
 //                if(I.isSimple() == false) {
 //                    // s += res.IntVal.toString(10, 0) + ";";
 //                    cout << "simple" << endl;
@@ -3521,7 +3490,7 @@ break
             if (cf && cf->isDeclaration() && cf->isIntrinsic() &&
                 !( cf->getIntrinsicID() == Intrinsic::mips_bitrev //bitreverse
                    || cf->getIntrinsicID() == Intrinsic::xcore_bitrev// **** ConstantInt::get(Ty->getContext(), Op->getValue().reverseBits()
-                   || cf->getIntrinsicID() == Intrinsic::maxnum
+                   || cf->getIntrinsicID() == Intrinsic::maxnum || cf->getIntrinsicID() == Intrinsic::umul_with_overflow
                    || cf->getIntrinsicID() == Intrinsic::minnum
                    || cf->getIntrinsicID() == Intrinsic::fabs)) // can not lower those functions
             {
@@ -3575,7 +3544,6 @@ break
                 }
             }
             else {
-                cf->dump();
                 if(cf->getReturnType()->isIntegerTy()) {
                     const DataLayout *DL = _module->getDataLayout();
                     GenericValue res;
@@ -3583,22 +3551,14 @@ break
                     _globalEc.setValue(&I, res);
                 }
             }
-            cout << "test aip 1" << endl;
             GenericValue Dest;
-            cout << "test aip 2" << endl;
             for (auto aIt = I.op_begin(), eIt = I.op_begin() + I.getNumArgOperands(); aIt != eIt; ++aIt) // **** change arg to op -I.getNumArgOperands()
             {
-                cout << "test aip 3" << endl;
                 Value* val = *aIt;
-                cout << "test aip 4" << endl;
-                val->dump();
                 ce.calledArguments.push_back(_globalEc.getOperandValue(val, ec));
-                cout << "test aip 5" << endl;
             }
 
-            cout << "test aip 6" << endl;
             _calls.push_back(ce);
-            cout << "test aip 7" << endl;
         }
 
         void LlvmIrEmulator::visitInvokeInst(llvm::InvokeInst& I)
@@ -3798,8 +3758,6 @@ break
         void LlvmIrEmulator::visitBitCastInst(llvm::BitCastInst& I)
         {
             LocalExecutionContext& ec = _ecStack.back();
-            cout << "bitcast" << endl;
-            I.dump();
             _globalEc.setValue(&I, executeBitCastInst(I.getOperand(0), I.getType(), ec, _globalEc));
         }
 
@@ -3853,6 +3811,7 @@ break
             // assert(false && "Handling of InsertValueInst is not implemented");
             // throw LlvmIrEmulatorError("Handling of InsertValueInst is not implemented");
         }
+
 
         void LlvmIrEmulator::visitPHINode(llvm::PHINode& PN)
         {
