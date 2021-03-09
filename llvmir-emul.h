@@ -153,6 +153,7 @@ namespace retdec {
             int loopNums = 0;
             bool analyze = false;
             bool flag = 0;
+            std::map<llvm::BasicBlock*, int>* visited = nullptr;
         };
 
         class LlvmIrEmulator : public llvm::InstVisitor<LlvmIrEmulator>
@@ -253,6 +254,7 @@ namespace retdec {
             void visitInsertValueInst(llvm::InsertValueInst& I);
             void visitInstruction(llvm::Instruction& I);
             std::string similairtyString();
+            void setSimilarityStringToNull();
 
         private:
             void run();

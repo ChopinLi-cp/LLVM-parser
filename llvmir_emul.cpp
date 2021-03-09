@@ -977,6 +977,7 @@ break
                 SF.curBB   = Dest;                  // Update CurBB to branch destination
                 SF.curInst = SF.curBB->begin();     // Update new instruction ptr...
 
+                SF.curInst->dump();
                 if (!isa<PHINode>(SF.curInst))
                 {
                     return;  // Nothing fancy to do
@@ -2471,6 +2472,7 @@ break
         {
             assert(_module == f->getParent());
 
+            _visitedBbs.clear();
             const size_t ac = f->getFunctionType()->getNumParams();
             ArrayRef<GenericValue> aargs = argVals.slice(
                     0,
@@ -2485,7 +2487,7 @@ break
 //            if (double(end-start)/CLOCKS_PER_SEC>5){
 //                _ecStack.pop_back();
 //            }
-
+//            _visitedBbs.clear();
             return _exitValue;
         }
 
@@ -2535,7 +2537,7 @@ break
                     string os;
                     llvm::raw_string_ostream *OS = new llvm::raw_string_ostream(os);
                     ec.LoopInfoBase->print(*OS);
-                    // cout << OS->str() << endl;
+                    cout << OS->str() << endl;
                     ec.analyze = true;
                 }
                 // if(LoopInfo->isLoopHeader(ec.curBB)) {
@@ -2552,9 +2554,24 @@ break
 //                if(!Loop && Loop->contains(ec.curBB) && (Loop->isLoopExiting(ec.curBB)))
 //                    || LoopBase->getHeader() == ec.curBB ||
 //                LoopBase->getLoopLatch() == ec.curBB))
-                if(ec.Loop != nullptr && ec.Loop->isLoopExiting(ec.curBB))
+//                  ec.Loop->isLoopExiting(ec.curBB) ||  || ec.Loop->getHeader() == ec.curBB
+                if(ec.Loop != nullptr && ((ec.Loop->isLoopExiting(ec.curBB)) || ec.Loop->getHeader() == ec.curBB))
                 {
                     string os;
+                    BasicBlock* bb = ec.curBB;
+                    cout << "test visited" << endl;
+//                    if (ec.visited->find(ec.curBB) != ec.visited->end())
+//                    {
+//                        int value = ec.visited->at(ec.curBB);
+//                        value = value + 1;
+//                        ec.visited->erase(ec.curBB);
+//                        ec.visited->emplace(ec.curBB, value);
+//                    }
+//                    else {
+//                        cout << "test visited" << endl;
+//                        ec.visited->emplace(ec.curBB, 0);
+//                        cout << "test visited" << endl;
+//                    }
                     raw_string_ostream *rso = new raw_string_ostream(os);
                     cout << ec.LoopBase->getBlocks().size() << "LoopBase" << endl;
                     cout << os << endl;
@@ -2566,27 +2583,39 @@ break
 
                 if(ec.loopNums >= 2) {
                     cout << "LoopFor: " << ec.loopNums  << endl;
-                    ec.loopNums = 0;
+                    i.dump();
                     if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i)) {
-                        BasicBlock *dest;
-                        ri->dump();
-                        dest = ri->getSuccessor(0);
-                        if (!ri->isUnconditional()) {
+//                        if(ec.Loop->isLoopExiting(ec.curBB)){
+                            ec.loopNums = 0;
+                            BasicBlock *dest, *dest1, *dest2;
                             ri->dump();
-                            Value *cond = ri->getCondition();
-                            _globalEc.getOperandValue(cond, ec).IntVal.dump();
-                            if (_globalEc.getOperandValue(cond, ec).IntVal == 0) {
-                                dest = ri->getSuccessor(ec.flag);
-                            }
-                            else {
-                                dest = ri->getSuccessor(ec.flag);
-                            }
-                            if(ec.analyze){
+                            dest = ri->getSuccessor(0);
+                            if (!ri->isUnconditional()) {
+                                ri->dump();
+                                Value *cond = ri->getCondition();
+                                _globalEc.getOperandValue(cond, ec).IntVal.dump();
+    //                            if (_globalEc.getOperandValue(cond, ec).IntVal == 0) {
+                                    dest1 = ri->getSuccessor(ec.flag);
+                                    dest2 = ri->getSuccessor(1 - ec.flag);
+                                    if (wasBasicBlockVisited(dest1)) {
+                                        cout << "wasBasicBlockVisited(dest1)" << endl;
+                                        dest = dest2;
+                                    } else if(wasBasicBlockVisited(dest2)) {
+                                        dest = dest1;
+                                        cout << "(wasBasicBlockVisited(dest2))" << endl;
+                                    }
+                                    else {
+                                        dest = dest1;
+                                    }
+    //                            }
+    //                            else {
+    //                                dest = ri->getSuccessor(ec.flag);
+    //                            }
                                 ec.flag = 1 - ec.flag;
                             }
-                        }
-                        switchToNewBasicBlock(dest, ec, _globalEc);
-                        continue;
+                            switchToNewBasicBlock(dest, ec, _globalEc);
+                            continue;
+//                        }
                     }
                     if(_ecStack.size() > 1) {
                         if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
@@ -2595,6 +2624,7 @@ break
                     }
                 }
                 logInstruction(&i);
+//                cout << "surprise" << endl;
                 visit(i);
             }
         }
@@ -2931,10 +2961,9 @@ break
                     dest = cast<BasicBlock>(Case.getCaseSuccessor());
                     if(ec.loopNums == 0){
                         cout << "cycle" << endl;
-                        int num = I.cases().end().getCaseIndex() - I.cases().begin().getCaseIndex();
-                        default_random_engine rand(time(NULL));
-                        uniform_int_distribution<int> rand1(0,num);
-                        int add = rand1(rand);
+                        int num = I.cases().end().getCaseIndex() - I.cases().begin().getCaseIndex() - 1;
+                        srand((unsigned)time(NULL));
+                        int add = rand()%num;
                         cout << add << endl;
                         for(int i=0; i<add ;i++){
                             Case ++ ;
@@ -3475,6 +3504,10 @@ break
 
         string LlvmIrEmulator::similairtyString() {
             return this->s;
+        }
+
+        void LlvmIrEmulator::setSimilarityStringToNull() {
+            s = "";
         }
 
 //
