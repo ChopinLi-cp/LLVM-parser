@@ -65,7 +65,7 @@ namespace retdec {
                 infile.open(str);
 
                 if(!infile.is_open()){
-                    cout << "the file could not be opened!" << endl;
+                    return "";
                     // ****
                 }
 
@@ -977,7 +977,7 @@ break
                 SF.curBB   = Dest;                  // Update CurBB to branch destination
                 SF.curInst = SF.curBB->begin();     // Update new instruction ptr...
 
-                SF.curInst->dump();
+//                SF.curInst->dump();
                 if (!isa<PHINode>(SF.curInst))
                 {
                     return;  // Nothing fancy to do
@@ -2332,7 +2332,7 @@ break
             }
 
             auto fIt = memory.find(addr);
-            cout << "getMemory\t" << (fIt != memory.end()) << endl;
+//            cout << "getMemory\t" << (fIt != memory.end()) << endl;
             return fIt != memory.end() ? fIt->second : GenericValue();
         }
 
@@ -2482,6 +2482,7 @@ break
 
 //            clock_t start, end;
 //            start = clock();
+            cout << "begin running" << endl;
             run();
 //            end = clock();
 //            if (double(end-start)/CLOCKS_PER_SEC>5){
@@ -2537,29 +2538,16 @@ break
                     string os;
                     llvm::raw_string_ostream *OS = new llvm::raw_string_ostream(os);
                     ec.LoopInfoBase->print(*OS);
-                    cout << OS->str() << endl;
                     ec.analyze = true;
                 }
-                // if(LoopInfo->isLoopHeader(ec.curBB)) {
-                //     loopNums ++ ;
-                //     cout << "loopHeader" <<endl;
-                // }
+
                 ec.Loop = ec.LoopInfoBase->getLoopFor(ec.curBB);
-//                cout << "depth" << ec.LoopInfoBase->getLoopDepth(ec.curBB) << endl;
-//                if(ec.Loop != nullptr) {
-//                    ec.Loop->dump();
-//                    cout << "couldDump" << endl;
-//                }
-//                Loop->dump();
-//                if(!Loop && Loop->contains(ec.curBB) && (Loop->isLoopExiting(ec.curBB)))
-//                    || LoopBase->getHeader() == ec.curBB ||
-//                LoopBase->getLoopLatch() == ec.curBB))
-//                  ec.Loop->isLoopExiting(ec.curBB) ||  || ec.Loop->getHeader() == ec.curBB
+
                 if(ec.Loop != nullptr && ((ec.Loop->isLoopExiting(ec.curBB)) || ec.Loop->getHeader() == ec.curBB))
                 {
                     string os;
                     BasicBlock* bb = ec.curBB;
-                    cout << "test visited" << endl;
+
 //                    if (ec.visited->find(ec.curBB) != ec.visited->end())
 //                    {
 //                        int value = ec.visited->at(ec.curBB);
@@ -2568,54 +2556,35 @@ break
 //                        ec.visited->emplace(ec.curBB, value);
 //                    }
 //                    else {
-//                        cout << "test visited" << endl;
 //                        ec.visited->emplace(ec.curBB, 0);
-//                        cout << "test visited" << endl;
 //                    }
                     raw_string_ostream *rso = new raw_string_ostream(os);
-                    cout << ec.LoopBase->getBlocks().size() << "LoopBase" << endl;
-                    cout << os << endl;
-                    cout << "LoopFor: " << ec.loopNums  << endl;
                     if(ec.curInst == ec.curBB->end())
                         ec.loopNums ++ ;
-//                    cout << "LoopFor: " << ec.loopNums  << endl;
                 }
 
                 if(ec.loopNums >= 2) {
-                    cout << "LoopFor: " << ec.loopNums  << endl;
-                    i.dump();
                     if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i)) {
 //                        if(ec.Loop->isLoopExiting(ec.curBB)){
                             ec.loopNums = 0;
                             BasicBlock *dest, *dest1, *dest2;
-                            ri->dump();
                             dest = ri->getSuccessor(0);
                             if (!ri->isUnconditional()) {
-                                ri->dump();
                                 Value *cond = ri->getCondition();
-                                _globalEc.getOperandValue(cond, ec).IntVal.dump();
-    //                            if (_globalEc.getOperandValue(cond, ec).IntVal == 0) {
                                     dest1 = ri->getSuccessor(ec.flag);
                                     dest2 = ri->getSuccessor(1 - ec.flag);
                                     if (wasBasicBlockVisited(dest1)) {
-                                        cout << "wasBasicBlockVisited(dest1)" << endl;
                                         dest = dest2;
                                     } else if(wasBasicBlockVisited(dest2)) {
                                         dest = dest1;
-                                        cout << "(wasBasicBlockVisited(dest2))" << endl;
                                     }
                                     else {
                                         dest = dest1;
                                     }
-    //                            }
-    //                            else {
-    //                                dest = ri->getSuccessor(ec.flag);
-    //                            }
                                 ec.flag = 1 - ec.flag;
                             }
                             switchToNewBasicBlock(dest, ec, _globalEc);
                             continue;
-//                        }
                     }
                     if(_ecStack.size() > 1) {
                         if(ReturnInst* ri = dyn_cast<llvm::ReturnInst>(&i))
@@ -2624,7 +2593,6 @@ break
                     }
                 }
                 logInstruction(&i);
-//                cout << "surprise" << endl;
                 visit(i);
             }
         }
@@ -2921,9 +2889,7 @@ break
 
         void LlvmIrEmulator::visitUnreachableInst(llvm::UnreachableInst& I)
         {
-            cout << "Program executed an 'unreachable' instruction!" << endl;
-//            if(_ecStack.size()>1)
-//                _ecStack.pop_back();
+//            cout << "Program executed an 'unreachable' instruction!" << endl;
             // throw LlvmIrEmulatorError("Program executed an 'unreachable' instruction!"); !!!!
         }
 
@@ -2960,18 +2926,15 @@ break
                 {
                     dest = cast<BasicBlock>(Case.getCaseSuccessor());
                     if(ec.loopNums == 0){
-                        cout << "cycle" << endl;
                         int num = I.cases().end().getCaseIndex() - I.cases().begin().getCaseIndex() - 1;
                         srand((unsigned)time(NULL));
                         int add = rand()%num;
-                        cout << add << endl;
                         for(int i=0; i<add ;i++){
                             Case ++ ;
                             if(Case == I.cases().begin())
                                 Case = I.cases().end();
                         }
                         dest = cast<BasicBlock>(Case.getCaseSuccessor());
-                        dest->dump();
                     }
                     break;
                 }
@@ -3271,8 +3234,7 @@ break
 
         void LlvmIrEmulator::visitLoadInst(llvm::LoadInst& I)
         {
-            cout << "Load Instruction: " << endl;
-            I.dump();
+
             const DataLayout *DL = _module->getDataLayout();
 
             LocalExecutionContext& ec = _ecStack.back();
@@ -3281,15 +3243,7 @@ break
             if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
             {
                 res = _globalEc.getGlobal(gv);
-                cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
-//                if(I.isSimple() == false) {
-//                    // s += res.IntVal.toString(10, 0) + ";";
-//                    cout << "simple" << endl;
-//                }
-//                else if(I.getName().empty()) {
-//                    // s += res.IntVal.toString(10, 0) + ";";
-//                    cout << "stack_var!" << endl;
-//                }
+
                 Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getPointerOperand()->getName();
                 if(!ref.empty() && ref.startswith("stack_var") || ref.startswith("pf") ||
@@ -3299,55 +3253,27 @@ break
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
                    ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                    // s += val.IntVal.toString(10, 0) + ";";
-                    cout << "stack_var!" << endl;
-//                    if(ref.startswith("rax"))
-//                        s += res.IntVal.toString(10, 0) + ";";
+                        s += "";
                 }
-//                else if (isa<ConstantExpr>(op0)){
-//                    auto constExpr = dyn_cast<ConstantExpr>(op0);
-//                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
-//                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
-//                        s += res.IntVal.toString(10, 0) + ";";
-//                    }
-//                }
-//                else if(ref.empty()) {
-//                    cout << "ref is empty!" << endl;
-//                }
+
                 else
                 {
-                    cout << "append" << endl;
                     s += res.IntVal.toString(10, 0) + ";";
-                    cout << endl;
                 }
             }
             else {
                 GenericValue src = _globalEc.getOperandValue(I.getPointerOperand(), ec);
                 GenericValue *ptr = reinterpret_cast<GenericValue *>(GVTOP(src));
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
-                cout << "Load Address: " << ptrVal << endl;
                 res = _globalEc.getMemory(ptrVal);
-                cout << "Load Operand: " << res.IntVal.toString(10, 0) << endl;
                 Value *PO = I.getPointerOperand();
                 // since we know it's a pointer Operand we can cast safely here
                 PointerType *PT = cast<PointerType>(PO->getType());
                 int length = DL->getTypeSizeInBits(PT->getPointerElementType());
-                cout << length << endl;
-                cout << res.IntVal.getBitWidth() << endl;
                 if (PT->getPointerElementType()->isIntegerTy()) {
                     res.IntVal = res.IntVal.sextOrTrunc(length);
                 }
-                //if (res.IntVal.getBitWidth() < 8) {
-                //    res.IntVal = APInt(8, res.IntVal.getZExtValue());
-                //}
-//                if(I.isSimple() == false) {
-//                    // s += res.IntVal.toString(10, 0) + ";";
-//                    cout << "simple" << endl;
-//                }
-//                else if(I.getName().empty()) {
-//                    // s += res.IntVal.toString(10, 0) + ";";
-//                    cout << "stack_var!" << endl;
-//                }
+
                 Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getPointerOperand()->getName();
                 if(!ref.empty() && ref.startswith("stack_var") || ref.startswith("pf") ||
@@ -3357,10 +3283,7 @@ break
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
                    ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                    // s += val.IntVal.toString(10, 0) + ";";
-                    cout << "stack_var!" << endl;
-//                    if(ref.startswith("rax"))
-//                        s += res.IntVal.toString(10, 0) + ";";
+                        s += "";
                 }
                 else if (isa<ConstantExpr>(op0)){
                     auto constExpr = dyn_cast<ConstantExpr>(op0);
@@ -3370,12 +3293,10 @@ break
                     }
                 }
                 else if(ref.empty()) {
-                    cout << "ref is empty!" << endl;
+                    s += "";
                 }
                 else{
-                    cout << "append" << endl;
                     s += res.IntVal.toString(10, 0) + ";";
-                    cout << endl;
                 }
             }
 
@@ -3384,8 +3305,6 @@ break
 
         void LlvmIrEmulator::visitStoreInst(llvm::StoreInst& I)
         {
-            cout << "Store Instruction: " << endl;
-            I.dump();
             LocalExecutionContext& ec = _ecStack.back();
             GenericValue val = _globalEc.getOperandValue(I.getOperand(0), ec);
 
@@ -3393,21 +3312,9 @@ break
             {
                 _globalEc.setGlobal(gv, val);
                 if(I.isVolatile()) {
-                    // s += val.IntVal.toString(10, 0) + ";";
-                    cout << "volatile!"<< endl;
                     return;
                 }
-//                if(I.isSimple() == false) {
-//                    // s += val.IntVal.toString(10, 0) + ";";
-//                    cout << "simple" << endl;
-//                    return;
-//                }
-//                if(I.getOperand(1)->getName().empty()) {
-//                    // s += val.IntVal.toString(10, 0) + ";";
-//                    cout << "stack_var!" << endl;
-//                    return;
-//                }
-//                Value *op0 = I.getPointerOperand();
+
                 StringRef ref = I.getOperand(1)->getName();
                 if(ref.startswith("stack_var") || ref.startswith("pf") ||
                    ref.startswith("rsp") || ref.startswith("zf") ||
@@ -3416,30 +3323,8 @@ break
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
                    ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                    // s += val.IntVal.toString(10, 0) + ";";
-                    cout << "stack_var!" << endl;
                     return;
                 }
-//                else if (isa<ConstantExpr>(op0)){
-//                    auto constExpr = dyn_cast<ConstantExpr>(op0);
-//                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
-//                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
-//                        cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
-//                        cout << "append" << endl;
-//                        s += val.IntVal.toString(10, 0) + ";";
-//                        return;
-//                    }
-//                }
-//                else if(ref.empty()) {
-//                    cout << "ref is empty!" << endl;
-//                    return;
-//                }
-//                else if(ref.empty()) {
-//                    cout << "stack_var!" << endl;
-//                    return;
-//                }
-                cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
-                cout << "append" << endl;
                 s += val.IntVal.toString(10, 0) + ";";
             }
             else
@@ -3447,18 +3332,10 @@ break
                 GenericValue dst = _globalEc.getOperandValue(I.getPointerOperand(), ec);
                 GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(dst));
                 uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
-                cout << "Store Address: " << ptrVal << endl;
                 _globalEc.setMemory(ptrVal, val);
                 if(I.isVolatile()) {
-                    // s += val.IntVal.toString(10, 0) + ";";
-                    cout << "volatile!"<< endl;
                     return;
                 }
-//                if(I.isSimple() == false) {
-//                    // s += val.IntVal.toString(10, 0) + ";";
-//                    cout << "simple" << endl;
-//                    return;
-//                }
                 Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getOperand(1)->getName();
                 if(ref.startswith("stack_var") || ref.startswith("pf") ||
@@ -3468,37 +3345,20 @@ break
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
                    ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                    // s += val.IntVal.toString(10, 0) + ";";
-                    cout << "stack_var!" << endl;
                     return;
                 }
                 else if (isa<ConstantExpr>(op0)){
                     auto constExpr = dyn_cast<ConstantExpr>(op0);
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
-                        cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
-                        cout << "append" << endl;
                         s += val.IntVal.toString(10, 0) + ";";
                         return;
                     }
                 }
                 else if(ref.empty()) {
-                    cout << "ref is empty!" << endl;
                     return;
                 }
-//                else if(ref.empty()) {
-//                    cout << "stack_var!" << endl;
-//                    return;
-//                }
-//                if(I.getOperand(1)->getName().empty()) {
-//                    // s += val.IntVal.toString(10, 0) + ";";
-//                    cout << "stack_var!" << endl;
-//                    return;
-//                }
-                cout << "Store Operand: "<< val.IntVal.toString(10, 0) << endl;
-                cout << "append" << endl;
                 s += val.IntVal.toString(10, 0) +  ";";
-                cout << endl;
             }
         }
 
@@ -3507,7 +3367,7 @@ break
         }
 
         void LlvmIrEmulator::setSimilarityStringToNull() {
-            s = "";
+            this->s = "";
         }
 
 //
@@ -3840,7 +3700,7 @@ break
 
         void LlvmIrEmulator::visitInsertValueInst(llvm::InsertValueInst& I)
         {
-            cout << "Handling of InsertValueInst is not implemented" << endl;
+//            cout << "Handling of InsertValueInst is not implemented" << endl;
             // assert(false && "Handling of InsertValueInst is not implemented");
             // throw LlvmIrEmulatorError("Handling of InsertValueInst is not implemented");
         }
