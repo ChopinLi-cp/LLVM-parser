@@ -153,6 +153,7 @@ namespace retdec {
             int loopNums = 0;
             bool analyze = false;
             bool flag = 0;
+            bool PHIorNot = false;
             std::map<llvm::BasicBlock*, int>* visited = nullptr;
         };
 

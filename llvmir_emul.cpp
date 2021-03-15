@@ -287,8 +287,8 @@ break
 
 #define IMPLEMENT_POINTER_ICMP(OP) \
 	case Type::PointerTyID: \
-		Dest.IntVal = APInt(1, *(reinterpret_cast<int *>(reinterpret_cast<intptr_t>(Src1.PointerVal))) OP \
-				*(reinterpret_cast<int *>(reinterpret_cast<intptr_t>(Src2.PointerVal)))); \
+		Dest.IntVal = APInt(1, (reinterpret_cast<void *>(reinterpret_cast<intptr_t>(Src1.PointerVal))) OP \
+				(reinterpret_cast<void *>(reinterpret_cast<intptr_t>(Src2.PointerVal)))); \
 		break;
 
 
@@ -297,6 +297,9 @@ break
                     GenericValue Src2,
                     Type *Ty)
             {
+//                cout << reinterpret_cast<void*>(reinterpret_cast<intptr_t>(Src1.PointerVal)) << " "
+//                     << reinterpret_cast<void*>(reinterpret_cast<intptr_t>(Src2.PointerVal)) << endl;
+//                cout << Ty->getTypeID() << endl;
                 GenericValue Dest;
                 switch (Ty->getTypeID())
                 {
@@ -990,6 +993,10 @@ break
                 {
                     // Search for the value corresponding to this previous bb...
                     int i = PN->getBasicBlockIndex(PrevBB);
+                    if(i != -1) {
+                        SF.PHIorNot = true;
+                        return;
+                    }
                     assert(i != -1 && "PHINode doesn't contain entry for predecessor??");
                     Value *IncomingValue = PN->getIncomingValue(i);
 
@@ -1760,10 +1767,42 @@ break
                     case Instruction::FMul: executeFMulInst(Dest, Op0, Op1, Ty); break;
                     case Instruction::FDiv: executeFDivInst(Dest, Op0, Op1, Ty); break;
                     case Instruction::FRem: executeFRemInst(Dest, Op0, Op1, Ty); break;
-                    case Instruction::SDiv: Dest.IntVal = Op0.IntVal.sdiv(Op1.IntVal); break;
-                    case Instruction::UDiv: Dest.IntVal = Op0.IntVal.udiv(Op1.IntVal); break;
-                    case Instruction::URem: Dest.IntVal = Op0.IntVal.urem(Op1.IntVal); break;
-                    case Instruction::SRem: Dest.IntVal = Op0.IntVal.srem(Op1.IntVal); break;
+                    case Instruction::SDiv: {
+                        if(Op1.IntVal.toString(10, 0) == "0") {
+                            Dest.IntVal = Op0.IntVal;
+                        }
+                        else{
+                            Dest.IntVal = Op0.IntVal.sdiv(Op1.IntVal);
+                        }
+                        break;
+                    }
+                    case Instruction::UDiv: {
+                        if(Op1.IntVal.toString(10, 0) == "0") {
+                            Dest.IntVal = Op0.IntVal;
+                        }
+                        else{
+                            Dest.IntVal = Op0.IntVal.udiv(Op1.IntVal);
+                        }
+                        break;
+                    }
+                    case Instruction::URem: {
+                        if(Op1.IntVal.toString(10, 0) == "0") {
+                            Dest.IntVal = Op0.IntVal;
+                        }
+                        else {
+                            Dest.IntVal = Op0.IntVal.urem(Op1.IntVal);
+                        }
+                        break;
+                    }
+                    case Instruction::SRem: {
+                        if(Op1.IntVal.toString(10, 0) == "0") {
+                            Dest.IntVal = Op0.IntVal;
+                        }
+                        else {
+                            Dest.IntVal = Op0.IntVal.srem(Op1.IntVal);
+                        }
+                        break;
+                    }
                     case Instruction::And:  Dest.IntVal = Op0.IntVal & Op1.IntVal; break;
                     case Instruction::Or:   Dest.IntVal = Op0.IntVal | Op1.IntVal; break;
                     case Instruction::Xor:  Dest.IntVal = Op0.IntVal ^ Op1.IntVal; break;
@@ -2359,7 +2398,7 @@ break
             }
 
             auto fIt = globals.find(g);
-            assert(fIt != globals.end());
+            //**** assert(fIt != globals.end());
             return fIt != globals.end() ? fIt->second : GenericValue();
         }
 
@@ -2482,7 +2521,7 @@ break
 
 //            clock_t start, end;
 //            start = clock();
-            cout << "begin running" << endl;
+//            cout << "begin running" << endl;
             run();
 //            end = clock();
 //            if (double(end-start)/CLOCKS_PER_SEC>5){
@@ -2528,7 +2567,7 @@ break
                     break;
                 }
                 Instruction &i = *ec.curInst++;
-                i.dump();
+//                i.dump();
                 if(ec.analyze == false) {
                     llvm::DominatorTree DT = llvm::DominatorTree();
                     DT.recalculate(*ec.curFunction);
@@ -2926,13 +2965,13 @@ break
                 {
                     dest = cast<BasicBlock>(Case.getCaseSuccessor());
                     if(ec.loopNums == 0){
-                        int num = I.cases().end().getCaseIndex() - I.cases().begin().getCaseIndex() - 1;
+                        int num = I.cases().end().getCaseIndex() - I.cases().begin().getCaseIndex();
                         srand((unsigned)time(NULL));
                         int add = rand()%num;
                         for(int i=0; i<add ;i++){
                             Case ++ ;
-                            if(Case == I.cases().begin())
-                                Case = I.cases().end();
+                            if(Case == I.cases().end())
+                                Case = I.cases().begin();
                         }
                         dest = cast<BasicBlock>(Case.getCaseSuccessor());
                     }
@@ -2942,6 +2981,9 @@ break
             if (!dest)
             {
                 dest = I.getDefaultDest();   // No cases matched: use default
+            }
+            if (wasBasicBlockVisited(dest)) {
+                    _ecStack.pop_back();
             }
             switchToNewBasicBlock(dest, ec, _globalEc);
         }
@@ -2982,9 +3024,15 @@ break
                 // Additional macros to execute binary operations udiv/sdiv/urem/srem since
                 // they have different notation.
 #define INTEGER_VECTOR_FUNCTION(OP)                                    \
-        for (unsigned i = 0; i < res.AggregateVal.size(); ++i)             \
-            res.AggregateVal[i].IntVal =                                   \
-            op0.AggregateVal[i].IntVal.OP(op1.AggregateVal[i].IntVal);
+        for (unsigned i = 0; i < res.AggregateVal.size(); ++i){        \
+            if(op0.AggregateVal[i].IntVal.toString(10, 0) == "0"){     \
+                res.AggregateVal[i].IntVal = op0.AggregateVal[i].IntVal; \
+            }                                                           \
+            else {                                                     \
+                res.AggregateVal[i].IntVal =                           \
+                op0.AggregateVal[i].IntVal.OP(op1.AggregateVal[i].IntVal); \
+            }                                                          \
+        }
 
                 // Macros to execute binary operation 'OP' over floating point type TY
                 // (float or double) vectors
@@ -3089,10 +3137,42 @@ break
                     case Instruction::FMul:  executeFMulInst(res, op0, op1, ty); break;
                     case Instruction::FDiv:  executeFDivInst(res, op0, op1, ty); break;
                     case Instruction::FRem:  executeFRemInst(res, op0, op1, ty); break;
-                    case Instruction::UDiv:  res.IntVal = op0.IntVal.udiv(op1.IntVal); break;
-                    case Instruction::SDiv:  res.IntVal = op0.IntVal.sdiv(op1.IntVal); break;
-                    case Instruction::URem:  res.IntVal = op0.IntVal.urem(op1.IntVal); break;
-                    case Instruction::SRem:  res.IntVal = op0.IntVal.srem(op1.IntVal); break;
+                    case Instruction::UDiv:  {
+                        if(op1.IntVal.toString(10, 0) == "0") {
+                            res.IntVal = op0.IntVal;
+                        }
+                        else {
+                            res.IntVal = op0.IntVal.udiv(op1.IntVal);
+                        }
+                        break;
+                    }
+                    case Instruction::SDiv: {
+                        if(op1.IntVal.toString(10, 0) == "0") {
+                            res.IntVal = op0.IntVal;
+                        }
+                        else {
+                            res.IntVal = op0.IntVal.sdiv(op1.IntVal);
+                        }
+                        break;
+                    }
+                    case Instruction::URem:  {
+                        if(op1.IntVal.toString(10, 0) == "0") {
+                            res.IntVal = op0.IntVal;
+                        }
+                        else {
+                            res.IntVal = op0.IntVal.urem(op1.IntVal);
+                        }
+                        break;
+                    }
+                    case Instruction::SRem: {
+                        if(op1.IntVal.toString(10, 0) == "0") {
+                            res.IntVal = op0.IntVal;
+                        }
+                        else {
+                            res.IntVal = op0.IntVal.srem(op1.IntVal);
+                        }
+                        break;
+                    }
                     case Instruction::And:   res.IntVal = op0.IntVal & op1.IntVal; break;
                     case Instruction::Or:    res.IntVal = op0.IntVal | op1.IntVal; break;
                     case Instruction::Xor:   res.IntVal = op0.IntVal ^ op1.IntVal; break;
@@ -3384,8 +3464,8 @@ break
                 !( cf->getIntrinsicID() == Intrinsic::mips_bitrev //bitreverse
                    || cf->getIntrinsicID() == Intrinsic::xcore_bitrev// **** ConstantInt::get(Ty->getContext(), Op->getValue().reverseBits()
                    || cf->getIntrinsicID() == Intrinsic::maxnum || cf->getIntrinsicID() == Intrinsic::umul_with_overflow
-                   || cf->getIntrinsicID() == Intrinsic::minnum
-                   || cf->getIntrinsicID() == Intrinsic::fabs)) // can not lower those functions
+                   || cf->getIntrinsicID() == Intrinsic::minnum || cf->getIntrinsicID() == Intrinsic::trap
+                   || cf->getIntrinsicID() == Intrinsic::fabs || cf->getIntrinsicID() == Intrinsic::uadd_with_overflow)) // can not lower those functions
             {
                 assert(cf->getIntrinsicID() != Intrinsic::vastart
                        && cf->getIntrinsicID() != Intrinsic::vaend
@@ -3418,7 +3498,7 @@ break
             ce.calledValue = I.getCalledValue();
 //            CallSite cs(&I);
 //            ec.caller = cs;
-            if(!cf->isDeclaration()) {
+            if(cf && !cf->isDeclaration()) {
                 CallSite cs(&I);
                 ec.caller = cs;
                 if (cf->arg_empty()) {
@@ -3437,12 +3517,12 @@ break
                 }
             }
             else {
-                if(cf->getReturnType()->isIntegerTy()) {
+                GenericValue res;
+                if(cf && cf->getReturnType()->isIntegerTy()) {
                     const DataLayout *DL = _module->getDataLayout();
-                    GenericValue res;
                     res.IntVal = res.IntVal.sextOrTrunc(DL->getTypeSizeInBits(cf->getReturnType()));
-                    _globalEc.setValue(&I, res);
                 }
+                _globalEc.setValue(&I, res);
             }
             GenericValue Dest;
             for (auto aIt = I.op_begin(), eIt = I.op_begin() + I.getNumArgOperands(); aIt != eIt; ++aIt) // **** change arg to op -I.getNumArgOperands()
@@ -3450,7 +3530,7 @@ break
                 Value* val = *aIt;
                 ce.calledArguments.push_back(_globalEc.getOperandValue(val, ec));
             }
-
+            // **** call i64 bitcast (i32 (i8*)* @strlen to i64 (i8*)*)(i8* %tmp240) could not deal with
             _calls.push_back(ce);
         }
 
@@ -3678,8 +3758,9 @@ break
 
         void LlvmIrEmulator::visitInsertElementInst(llvm::InsertElementInst& I)
         {
-            assert(false && "Handling of InsertElementInst is not implemented");
-            throw LlvmIrEmulatorError("Handling of InsertElementInst is not implemented");
+//            cout << "Handling of InsertElementInst is not implemented" << endl;
+//            assert(false && "Handling of InsertElementInst is not implemented");
+//            throw LlvmIrEmulatorError("Handling of InsertElementInst is not implemented");
         }
 
         void LlvmIrEmulator::visitShuffleVectorInst(llvm::ShuffleVectorInst& I)
@@ -3708,7 +3789,11 @@ break
 
         void LlvmIrEmulator::visitPHINode(llvm::PHINode& PN)
         {
-            throw LlvmIrEmulatorError("PHI nodes already handled!");
+            // throw LlvmIrEmulatorError("PHI nodes already handled!");
+            if(_ecStack.back().PHIorNot && _ecStack.size() >=1){
+                _ecStack.pop_back();
+            }
+//            cout << "PHI nodes already handled!" <<endl;
         }
 
 //
