@@ -979,7 +979,7 @@ break
                 BasicBlock *PrevBB = SF.curBB;      // Remember where we came from...
                 SF.curBB   = Dest;                  // Update CurBB to branch destination
                 SF.curInst = SF.curBB->begin();     // Update new instruction ptr...
-
+                SF.PHIorNot = false;
 //                SF.curInst->dump();
                 if (!isa<PHINode>(SF.curInst))
                 {
@@ -993,7 +993,7 @@ break
                 {
                     // Search for the value corresponding to this previous bb...
                     int i = PN->getBasicBlockIndex(PrevBB);
-                    if(i != -1) {
+                    if(i == -1) {
                         SF.PHIorNot = true;
                         return;
                     }
@@ -1480,6 +1480,7 @@ break
                 if ((SrcTy->getTypeID() == Type::VectorTyID)
                     || (DstTy->getTypeID() == Type::VectorTyID))
                 {
+                    cout << "1" <<endl;
                     // vector src bitcast to vector dst or vector src bitcast to scalar dst or
                     // scalar src bitcast to vector dst
                     bool isLittleEndian = SF.getModule()->getDataLayout()->isLittleEndian(); // **** change the second . to ->
@@ -1657,6 +1658,7 @@ break
                         }
                         else if (SrcTy->isIntegerTy())
                         {
+                            cout << "5" <<endl;
                             Dest.IntVal = Src.IntVal;
                         }
                         else
@@ -2507,11 +2509,19 @@ break
 
         llvm::GenericValue LlvmIrEmulator::runFunction(
                 llvm::Function* f,
-                const llvm::ArrayRef<llvm::GenericValue> argVals)
+                const llvm::ArrayRef<llvm::GenericValue> argVals,
+                bool outside)
         {
             assert(_module == f->getParent());
 
-            _visitedBbs.clear();
+            if(outside) {
+                _visitedBbs.clear();
+                _exitValue = GenericValue();
+                _ecStack.clear();
+                _visitedInsns.clear();
+                _visitedInsns.clear();
+                _ecStackRetired.clear();
+            }
             const size_t ac = f->getFunctionType()->getNumParams();
             ArrayRef<GenericValue> aargs = argVals.slice(
                     0,
@@ -2543,6 +2553,7 @@ break
             auto& ec = _ecStack.back();
             ec.curFunction = f;
             ec.loopNums = 0;
+            ec.flag = false;
 
             if (f->isDeclaration())
             {
@@ -2582,7 +2593,7 @@ break
 
                 ec.Loop = ec.LoopInfoBase->getLoopFor(ec.curBB);
 
-                if(ec.Loop != nullptr && ((ec.Loop->isLoopExiting(ec.curBB)) || ec.Loop->getHeader() == ec.curBB))
+                if(ec.Loop != nullptr && ((ec.Loop->isLoopExiting(ec.curBB))|| ec.Loop->getHeader() == ec.curBB)) //  || ec.Loop->getHeader() == ec.curBB
                 {
                     string os;
                     BasicBlock* bb = ec.curBB;
@@ -2598,11 +2609,14 @@ break
 //                        ec.visited->emplace(ec.curBB, 0);
 //                    }
                     raw_string_ostream *rso = new raw_string_ostream(os);
-                    if(ec.curInst == ec.curBB->end())
-                        ec.loopNums ++ ;
+                    if(ec.curInst == ec.curBB->end()) {
+                        ec.loopNums++;
+//                        cout << "loopNums" <<  ec.loopNums << endl;
+                    }
                 }
 
                 if(ec.loopNums >= 2) {
+//                    cout << "loopNums" << ec.loopNums << endl;
                     if(BranchInst *ri = dyn_cast<llvm::BranchInst>(&i)) {
 //                        if(ec.Loop->isLoopExiting(ec.curBB)){
                             ec.loopNums = 0;
@@ -2610,17 +2624,27 @@ break
                             dest = ri->getSuccessor(0);
                             if (!ri->isUnconditional()) {
                                 Value *cond = ri->getCondition();
-                                    dest1 = ri->getSuccessor(ec.flag);
-                                    dest2 = ri->getSuccessor(1 - ec.flag);
-                                    if (wasBasicBlockVisited(dest1)) {
-                                        dest = dest2;
-                                    } else if(wasBasicBlockVisited(dest2)) {
-                                        dest = dest1;
-                                    }
-                                    else {
-                                        dest = dest1;
-                                    }
+                                dest1 = ri->getSuccessor(ec.flag);
+                                dest2 = ri->getSuccessor(1 - ec.flag);
                                 ec.flag = 1 - ec.flag;
+//                                cout << wasBasicBlockVisited(dest1) << "+" <<wasBasicBlockVisited(dest2) << endl;
+                                if (wasBasicBlockVisited(dest1) && !wasBasicBlockVisited(dest2)) {
+                                    dest = dest2;
+                                } else if(wasBasicBlockVisited(dest2) && !wasBasicBlockVisited(dest1)) {
+                                    dest = dest1;
+                                } else if(!wasBasicBlockVisited(dest2) && !wasBasicBlockVisited(dest1)){
+                                    dest = dest1;
+                                }
+                                else{
+                                    if(_ecStack.size() > 0) {
+//                                        cout << "quit" << endl;
+                                        int length = _ecStack.size();
+                                        while(length--) {
+                                            _ecStack.pop_back();
+                                        }
+                                        continue;
+                                    }
+                                }
                             }
                             switchToNewBasicBlock(dest, ec, _globalEc);
                             continue;
@@ -2630,6 +2654,13 @@ break
                             break;
                         _ecStack.pop_back();
                     }
+//                    if(_ecStack.size() > 0) {
+////                      cout << "quit" << endl;
+//                        int length = _ecStack.size();
+//                        while(length--) {
+//                            _ecStack.pop_back();
+//                        }
+//                    }
                 }
                 logInstruction(&i);
                 visit(i);
@@ -3314,7 +3345,6 @@ break
 
         void LlvmIrEmulator::visitLoadInst(llvm::LoadInst& I)
         {
-
             const DataLayout *DL = _module->getDataLayout();
 
             LocalExecutionContext& ec = _ecStack.back();
@@ -3323,7 +3353,6 @@ break
             if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
             {
                 res = _globalEc.getGlobal(gv);
-
                 Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getPointerOperand()->getName();
                 if(!ref.empty() && ref.startswith("stack_var") || ref.startswith("pf") ||
@@ -3333,9 +3362,19 @@ break
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
                    ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                        s += "";
                 }
-
+                else if (isa<ConstantExpr>(op0)){
+                    auto constExpr = dyn_cast<ConstantExpr>(op0);
+                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                        auto res1 = _globalEc.getGlobal(var);
+                        s += res.IntVal.toString(10, 0) + ";";
+                        s += res1.IntVal.toString(10, 0) + ";";
+                    }
+                }
+//                else if(ref.empty()) {
+//                    cout << "ref is empty!" << endl;
+//                }
                 else
                 {
                     s += res.IntVal.toString(10, 0) + ";";
@@ -3363,17 +3402,17 @@ break
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
                    ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                        s += "";
                 }
                 else if (isa<ConstantExpr>(op0)){
                     auto constExpr = dyn_cast<ConstantExpr>(op0);
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                        auto res1 = _globalEc.getGlobal(var);
                         s += res.IntVal.toString(10, 0) + ";";
+                        s += res1.IntVal.toString(10, 0) + ";";
                     }
                 }
                 else if(ref.empty()) {
-                    s += "";
                 }
                 else{
                     s += res.IntVal.toString(10, 0) + ";";
@@ -3394,7 +3433,17 @@ break
                 if(I.isVolatile()) {
                     return;
                 }
-
+//                if(I.isSimple() == false) {
+//                    // s += val.IntVal.toString(10, 0) + ";";
+//                    cout << "simple" << endl;
+//                    return;
+//                }
+//                if(I.getOperand(1)->getName().empty()) {
+//                    // s += val.IntVal.toString(10, 0) + ";";
+//                    cout << "stack_var!" << endl;
+//                    return;
+//                }
+                Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getOperand(1)->getName();
                 if(ref.startswith("stack_var") || ref.startswith("pf") ||
                    ref.startswith("rsp") || ref.startswith("zf") ||
@@ -3403,8 +3452,28 @@ break
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
                    ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
+                    // s += val.IntVal.toString(10, 0) + ";";
                     return;
                 }
+                else if (isa<ConstantExpr>(op0)){
+                    auto constExpr = dyn_cast<ConstantExpr>(op0);
+                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+//                        auto val = dyn_cast<GenericValue>(var);
+                        auto val1 = _globalEc.getGlobal(var);
+                        s += val.IntVal.toString(10, 0) + ";";
+                        s += val1.IntVal.toString(10, 0) + ";";
+                        return;
+                    }
+                }
+//                else if(ref.empty()) {
+//                    cout << "ref is empty!" << endl;
+//                    return;
+//                }
+//                else if(ref.empty()) {
+//                    cout << "stack_var!" << endl;
+//                    return;
+//                }
                 s += val.IntVal.toString(10, 0) + ";";
             }
             else
@@ -3416,6 +3485,7 @@ break
                 if(I.isVolatile()) {
                     return;
                 }
+
                 Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getOperand(1)->getName();
                 if(ref.startswith("stack_var") || ref.startswith("pf") ||
@@ -3431,16 +3501,172 @@ break
                     auto constExpr = dyn_cast<ConstantExpr>(op0);
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                        auto val1 = _globalEc.getGlobal(var);
                         s += val.IntVal.toString(10, 0) + ";";
+                        s += val1.IntVal.toString(10, 0) + ";";
                         return;
                     }
                 }
                 else if(ref.empty()) {
                     return;
                 }
+
                 s += val.IntVal.toString(10, 0) +  ";";
             }
         }
+
+
+//        void LlvmIrEmulator::visitLoadInst(llvm::LoadInst& I)
+//        {
+//
+//            const DataLayout *DL = _module->getDataLayout();
+//
+//            LocalExecutionContext& ec = _ecStack.back();
+//            GenericValue res;
+//
+//            if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
+//            {
+//                res = _globalEc.getGlobal(gv);
+//
+//                Value *op0 = I.getPointerOperand();
+//                StringRef ref = I.getPointerOperand()->getName();
+//                if(!ref.empty() && ref.startswith("stack_var") || ref.startswith("pf") ||
+//                   ref.startswith("rsp") || ref.startswith("zf") ||
+//                   ref.startswith("rbp") || ref.startswith("sf") ||
+//                   ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
+//                   ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
+//                   ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
+//                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
+//                        s += "";
+//                }
+////                else if (isa<ConstantExpr>(op0)){
+////                    auto constExpr = dyn_cast<ConstantExpr>(op0);
+////                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+////                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+////                        auto val = getGlobalVariableValue(var);
+////                        s += res.IntVal.toString(10, 0) + ";";
+////                    }
+////                }
+////                else if(ref.empty()) {
+////                    s += "";
+////                }
+//                else
+//                {
+//                    s += res.IntVal.toString(10, 0) + ";";
+//                }
+//            }
+//            else {
+//                GenericValue src = _globalEc.getOperandValue(I.getPointerOperand(), ec);
+//                GenericValue *ptr = reinterpret_cast<GenericValue *>(GVTOP(src));
+//                uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
+//                res = _globalEc.getMemory(ptrVal);
+//                Value *PO = I.getPointerOperand();
+//                // since we know it's a pointer Operand we can cast safely here
+//                PointerType *PT = cast<PointerType>(PO->getType());
+//                int length = DL->getTypeSizeInBits(PT->getPointerElementType());
+//                if (PT->getPointerElementType()->isIntegerTy()) {
+//                    res.IntVal = res.IntVal.sextOrTrunc(length);
+//                }
+//
+//                Value *op0 = I.getPointerOperand();
+//                StringRef ref = I.getPointerOperand()->getName();
+//                if(!ref.empty() && ref.startswith("stack_var") || ref.startswith("pf") ||
+//                   ref.startswith("rsp") || ref.startswith("zf") ||
+//                   ref.startswith("rbp") || ref.startswith("sf") ||
+//                   ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
+//                   ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
+//                   ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
+//                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
+//                        s += "";
+//                }
+//                else if(ref.empty()) {
+//                    s += "";
+//                }
+//                else if (isa<ConstantExpr>(op0)){
+//                    auto constExpr = dyn_cast<ConstantExpr>(op0);
+//                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+//                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+//                        auto val = getGlobalVariableValue(var);
+//                        s += res.IntVal.toString(10, 0) + ";";
+//                    }
+//                }
+//                else{
+//                    s += res.IntVal.toString(10, 0) + ";";
+//                }
+//            }
+//
+//            _globalEc.setValue(&I, res);
+//        }
+//
+//        void LlvmIrEmulator::visitStoreInst(llvm::StoreInst& I)
+//        {
+//            LocalExecutionContext& ec = _ecStack.back();
+//            GenericValue val = _globalEc.getOperandValue(I.getOperand(0), ec);
+//
+//            if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
+//            {
+//                _globalEc.setGlobal(gv, val);
+//                if(I.isVolatile()) {
+//                    return;
+//                }
+//
+//                Value *op0 = I.getPointerOperand();
+//                StringRef ref = I.getOperand(1)->getName();
+//                if(ref.startswith("stack_var") || ref.startswith("pf") ||
+//                   ref.startswith("rsp") || ref.startswith("zf") ||
+//                   ref.startswith("rbp") || ref.startswith("sf") ||
+//                   ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
+//                   ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
+//                   ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
+//                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
+//                    return;
+//                }
+////                else if (isa<ConstantExpr>(op0)){
+////                    auto constExpr = dyn_cast<ConstantExpr>(op0);
+////                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+////                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+//////                        auto val = getGlobalVariableValue(var);
+////                        s += val.IntVal.toString(10, 0) + ";";
+////                        return;
+////                    }
+////                }
+//                s += val.IntVal.toString(10, 0) + ";";
+//            }
+//            else
+//            {
+//                GenericValue dst = _globalEc.getOperandValue(I.getPointerOperand(), ec);
+//                GenericValue* ptr = reinterpret_cast<GenericValue*>(GVTOP(dst));
+//                uint64_t ptrVal = reinterpret_cast<uint64_t>(ptr);
+//                _globalEc.setMemory(ptrVal, val);
+//                if(I.isVolatile()) {
+//                    return;
+//                }
+//                Value *op0 = I.getPointerOperand();
+//                StringRef ref = I.getOperand(1)->getName();
+//                if(ref.startswith("stack_var") || ref.startswith("pf") ||
+//                   ref.startswith("rsp") || ref.startswith("zf") ||
+//                   ref.startswith("rbp") || ref.startswith("sf") ||
+//                   ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
+//                   ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
+//                   ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
+//                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
+//                    return;
+//                }
+//                else if(ref.empty()) {
+//                    return;
+//                }
+//                else if (isa<ConstantExpr>(op0)){
+//                    auto constExpr = dyn_cast<ConstantExpr>(op0);
+//                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+//                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+////                        auto val = getGlobalVariableValue(var);
+//                        s += val.IntVal.toString(10, 0) + ";";
+//                        return;
+//                    }
+//                }
+//                s += val.IntVal.toString(10, 0) +  ";";
+//            }
+//        }
 
         string LlvmIrEmulator::similairtyString() {
             return this->s;
@@ -3503,7 +3729,7 @@ break
                 ec.caller = cs;
                 if (cf->arg_empty()) {
                     llvm::ArrayRef<llvm::GenericValue> argVals;
-                    _globalEc.setValue(&I, runFunction(cf, argVals));
+                    _globalEc.setValue(&I, runFunction(cf));
                 }
                 else {
                     int size = cf->arg_size();
@@ -3789,7 +4015,7 @@ break
 
         void LlvmIrEmulator::visitPHINode(llvm::PHINode& PN)
         {
-            // throw LlvmIrEmulatorError("PHI nodes already handled!");
+//             throw LlvmIrEmulatorError("PHI nodes already handled!");
             if(_ecStack.back().PHIorNot && _ecStack.size() >=1){
                 _ecStack.pop_back();
             }

@@ -150,9 +150,9 @@ namespace retdec {
             llvm::LoopInfoBase<llvm::BasicBlock, llvm::Loop>* LoopInfoBase = nullptr;
             llvm::LoopBase<llvm::BasicBlock, llvm::Loop>* LoopBase = nullptr;
             llvm::Loop* Loop = nullptr;
-            int loopNums = 0;
             bool analyze = false;
             bool flag = 0;
+            int loopNums = 0;
             bool PHIorNot = false;
             std::map<llvm::BasicBlock*, int>* visited = nullptr;
         };
@@ -172,7 +172,8 @@ namespace retdec {
 
             llvm::GenericValue runFunction(
                     llvm::Function* f,
-                    const llvm::ArrayRef<llvm::GenericValue> argVals = {});
+                    const llvm::ArrayRef<llvm::GenericValue> argVals = {},
+                    bool outside = false);
 
             // Emulation query methods.
             //
@@ -292,6 +293,8 @@ namespace retdec {
             std::list<CallEntry> _calls;
 
             std::string s;
+
+//            int loopNums = 0;
 
 //            llvm::DominatorTree DT = llvm::DominatorTree();
         };
