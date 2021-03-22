@@ -3368,7 +3368,7 @@ break
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
                         auto res1 = _globalEc.getGlobal(var);
-                        s += res.IntVal.toString(10, 0) + ";";
+//                        s += res.IntVal.toString(10, 0) + ";";
                         s += res1.IntVal.toString(10, 0) + ";";
                     }
                 }
@@ -3502,7 +3502,7 @@ break
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
                         auto val1 = _globalEc.getGlobal(var);
-                        s += val.IntVal.toString(10, 0) + ";";
+//                        s += val.IntVal.toString(10, 0) + ";";
                         s += val1.IntVal.toString(10, 0) + ";";
                         return;
                     }
