@@ -119,27 +119,27 @@ namespace retdec {
                     case 0:
                         break;
                     case 1:
-                        tmp = "0X" + tmp;
+                        tmp = "0X" + tmp.substr(0, tmp.size() - 2) + "p" + tmp.substr(tmp.size() - 2, tmp.size());
                         result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEhalf, tmp).convertToFloat();
                         break;
                     case 2:
-                        tmp = "0X" + tmp;
+                        tmp = "0X" + tmp.substr(0, tmp.size() - 2) + "p" + tmp.substr(tmp.size() - 2, tmp.size());
                         result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEsingle, tmp).convertToFloat();
                         break;
                     case 3:
-                        tmp = "0X" + tmp;
+                        tmp = "0X" + tmp.substr(0, tmp.size() - 2) + "p" + tmp.substr(tmp.size() - 2, tmp.size());
                         result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEdouble, tmp).convertToFloat();
                         break;
                     case 4:
-                        tmp = "0X" + tmp;
+                        tmp = "0X" + tmp.substr(0, tmp.size() - 2) + "p" + tmp.substr(tmp.size() - 2, tmp.size());
                         result.FloatVal=llvm::APFloat(llvm::APFloat::x87DoubleExtended, tmp).convertToFloat();
                         break;
                     case 5:
-                        tmp = "0X" + tmp;
+                        tmp = "0X" + tmp.substr(0, tmp.size() - 2) + "p" + tmp.substr(tmp.size() - 2, tmp.size());
                         result.FloatVal=llvm::APFloat(llvm::APFloat::IEEEquad, tmp).convertToFloat();
                         break;
                     case 6:
-                        tmp = "0X" + tmp;
+                        tmp = "0X" + tmp.substr(0, tmp.size() - 2) + "p" + tmp.substr(tmp.size() - 2, tmp.size());
                         result.FloatVal=llvm::APFloat(llvm::APFloat::PPCDoubleDouble, tmp).convertToFloat();
                         break;
                     case 7:
@@ -1122,13 +1122,13 @@ break
                     // the sizes of src and dst vectors must be equal.
                     Dest.AggregateVal.resize(size);
                     for (unsigned i = 0; i < size; i++)
-                        Dest.AggregateVal[i].IntVal = Src.AggregateVal[i].IntVal.sext(DBitWidth);
+                        Dest.AggregateVal[i].IntVal = Src.AggregateVal[i].IntVal.sextOrTrunc(DBitWidth);
                 }
                 else
                 {
                     auto *DITy = cast<IntegerType>(DstTy);
                     unsigned DBitWidth = DITy->getBitWidth();
-                    Dest.IntVal = Src.IntVal.sext(DBitWidth);
+                    Dest.IntVal = Src.IntVal.sextOrTrunc(DBitWidth);
                 }
                 return Dest;
             }
@@ -1480,7 +1480,6 @@ break
                 if ((SrcTy->getTypeID() == Type::VectorTyID)
                     || (DstTy->getTypeID() == Type::VectorTyID))
                 {
-                    cout << "1" <<endl;
                     // vector src bitcast to vector dst or vector src bitcast to scalar dst or
                     // scalar src bitcast to vector dst
                     bool isLittleEndian = SF.getModule()->getDataLayout()->isLittleEndian(); // **** change the second . to ->
@@ -1923,7 +1922,7 @@ break
                         {
                             GenericValue GV = getConstantValue(Op0, m);
                             uint32_t BitWidth = cast<IntegerType>(CE->getType())->getBitWidth();
-                            GV.IntVal = GV.IntVal.sext(BitWidth);
+                            GV.IntVal = GV.IntVal.sextOrTrunc(BitWidth);
                             return GV;
                         }
                         case Instruction::FPTrunc:
@@ -2578,7 +2577,7 @@ break
                     break;
                 }
                 Instruction &i = *ec.curInst++;
-//                i.dump();
+                // i.dump();
                 if(ec.analyze == false) {
                     llvm::DominatorTree DT = llvm::DominatorTree();
                     DT.recalculate(*ec.curFunction);
@@ -2944,6 +2943,9 @@ break
 
         void LlvmIrEmulator::visitReturnInst(llvm::ReturnInst& I)
         {
+            if(_ecStack.size() == 1) {
+//                I.dump();
+            }
             LocalExecutionContext& ec = _ecStack.back();
             Type* retTy = Type::getVoidTy(I.getContext());
             GenericValue res;
@@ -3355,29 +3357,33 @@ break
                 res = _globalEc.getGlobal(gv);
                 Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getPointerOperand()->getName();
-                if(!ref.empty() && ref.startswith("stack_var") || ref.startswith("pf") ||
-                   ref.startswith("rsp") || ref.startswith("zf") ||
+                if((ref.startswith("stack_var") || ref.startswith("pf") ||
+                   ref.startswith("rsp") || ref.startswith("zf") || ref.startswith("arg") ||
                    ref.startswith("rbp") || ref.startswith("sf") ||
                    ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
-                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
+                   ref.startswith("rax") || ref.startswith("rcx"))) {
                 }
                 else if (isa<ConstantExpr>(op0)){
                     auto constExpr = dyn_cast<ConstantExpr>(op0);
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
                         auto res1 = _globalEc.getGlobal(var);
+                        res = res1;
 //                        s += res.IntVal.toString(10, 0) + ";";
                         s += res1.IntVal.toString(10, 0) + ";";
+//                        res = res1;
+//                        cout << s << endl;
+//                        I.dump();
                     }
                 }
-//                else if(ref.empty()) {
-//                    cout << "ref is empty!" << endl;
-//                }
+                else if(ref.empty()){}
                 else
                 {
                     s += res.IntVal.toString(10, 0) + ";";
+//                    cout << s << endl;
+//                    I.dump();
                 }
             }
             else {
@@ -3395,27 +3401,32 @@ break
 
                 Value *op0 = I.getPointerOperand();
                 StringRef ref = I.getPointerOperand()->getName();
-                if(!ref.empty() && ref.startswith("stack_var") || ref.startswith("pf") ||
-                   ref.startswith("rsp") || ref.startswith("zf") ||
+                if((ref.startswith("stack_var") || ref.startswith("pf") ||
+                   ref.startswith("rsp") || ref.startswith("zf") || ref.startswith("arg") ||
                    ref.startswith("rbp") || ref.startswith("sf") ||
                    ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
-                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
+                   ref.startswith("rax") || ref.startswith("rcx"))) {
                 }
                 else if (isa<ConstantExpr>(op0)){
                     auto constExpr = dyn_cast<ConstantExpr>(op0);
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
                         auto res1 = _globalEc.getGlobal(var);
-                        s += res.IntVal.toString(10, 0) + ";";
+//                        s += res.IntVal.toString(10, 0) + ";";
+                        res = res1;
                         s += res1.IntVal.toString(10, 0) + ";";
+//                        res = res1;
+//                        cout << s << endl;
+//                        I.dump();
                     }
                 }
-                else if(ref.empty()) {
-                }
+                else if(ref.empty()){}
                 else{
                     s += res.IntVal.toString(10, 0) + ";";
+//                    cout << s << endl;
+//                    I.dump();
                 }
             }
 
@@ -3426,55 +3437,115 @@ break
         {
             LocalExecutionContext& ec = _ecStack.back();
             GenericValue val = _globalEc.getOperandValue(I.getOperand(0), ec);
-
+            GenericValue val1 = _globalEc.getOperandValue(I.getOperand(1), ec);
+//            s += val.IntVal.toString(10, 0) + ";";
             if (auto* gv = dyn_cast<GlobalVariable>(I.getPointerOperand()))
             {
                 _globalEc.setGlobal(gv, val);
                 if(I.isVolatile()) {
                     return;
                 }
-//                if(I.isSimple() == false) {
-//                    // s += val.IntVal.toString(10, 0) + ";";
-//                    cout << "simple" << endl;
-//                    return;
-//                }
-//                if(I.getOperand(1)->getName().empty()) {
-//                    // s += val.IntVal.toString(10, 0) + ";";
-//                    cout << "stack_var!" << endl;
-//                    return;
-//                }
-                Value *op0 = I.getPointerOperand();
-                StringRef ref = I.getOperand(1)->getName();
+
+                Value *op0 = I.getOperand(0);
+                Value *op1 = I.getOperand(1);
+                StringRef ref = I.getOperand(0)->getName();
+                StringRef ref1 = I.getOperand(1)->getName();
                 if(ref.startswith("stack_var") || ref.startswith("pf") ||
                    ref.startswith("rsp") || ref.startswith("zf") ||
-                   ref.startswith("rbp") || ref.startswith("sf") ||
+                   ref.startswith("rbp") || ref.startswith("sf") || ref.startswith("arg") ||
                    ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
-                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                    // s += val.IntVal.toString(10, 0) + ";";
-                    return;
+                   ref.startswith("rax") || ref.startswith("rcx")) {
+                    if(ref1.startswith("stack_var") || ref1.startswith("pf") ||
+                       ref1.startswith("rsp") || ref1.startswith("zf") ||
+                       ref1.startswith("rbp") || ref1.startswith("sf") || ref1.startswith("arg") ||
+                       ref1.startswith("rdx") || ref1.startswith("of") || ref1.startswith("tmp") ||
+                       ref1.startswith("rsi") || ref1.startswith("cf") || ref1.startswith("r") ||
+                       ref1.startswith("rdi") || ref1.startswith("az") || ref1.startswith("rbx") ||
+                       ref1.startswith("rax") || ref1.startswith("rcx")) {
+                        return;
+                    }
+                    else{
+                        if (isa<ConstantExpr>(op1)){
+                            auto constExpr = dyn_cast<ConstantExpr>(op1);
+                            if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                                auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                                auto tmp1 = _globalEc.getGlobal(var);
+                                s += tmp1.IntVal.toString(10, 0) + ";";
+//                                cout << s << endl;
+//                                I.dump();
+                                return;
+                            }
+                        }
+                        else if(ref1.empty()){return;}
+                        s += val1.IntVal.toString(10, 0) + ";";
+//                        I.dump();
+                        return;
+                    }
                 }
                 else if (isa<ConstantExpr>(op0)){
                     auto constExpr = dyn_cast<ConstantExpr>(op0);
                     if (isa<GlobalVariable>(constExpr->getOperand(0))) {
                         auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
-//                        auto val = dyn_cast<GenericValue>(var);
-                        auto val1 = _globalEc.getGlobal(var);
-                        s += val.IntVal.toString(10, 0) + ";";
-                        s += val1.IntVal.toString(10, 0) + ";";
-                        return;
+                        auto tmp = _globalEc.getGlobal(var);
+                        _globalEc.setGlobal(gv, tmp);
+//                        s += val.IntVal.toString(10, 0) + ";";
+                        s += tmp.IntVal.toString(10, 0) + ";";
                     }
+                    if(ref1.startswith("stack_var") || ref1.startswith("pf") ||
+                       ref1.startswith("rsp") || ref1.startswith("zf") ||
+                       ref1.startswith("rbp") || ref1.startswith("sf") || ref1.startswith("arg") ||
+                       ref1.startswith("rdx") || ref1.startswith("of") || ref1.startswith("tmp") ||
+                       ref1.startswith("rsi") || ref1.startswith("cf") || ref1.startswith("r") ||
+                       ref1.startswith("rdi") || ref1.startswith("az") || ref1.startswith("rbx") ||
+                       ref1.startswith("rax") || ref1.startswith("rcx")) {
+                    }
+                    else{
+                        if (isa<ConstantExpr>(op1)){
+                            auto constExpr = dyn_cast<ConstantExpr>(op1);
+                            if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                                auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                                auto tmp1 = _globalEc.getGlobal(var);
+                                s += tmp1.IntVal.toString(10, 0) + ";";
+                            }
+                        }
+                        else if(ref1.empty()){}
+                        else{
+                            s += val1.IntVal.toString(10, 0) + ";";
+                        }
+//                        I.dump();
+                    }
+//                    cout << s << endl;
                 }
-//                else if(ref.empty()) {
-//                    cout << "ref is empty!" << endl;
-//                    return;
-//                }
-//                else if(ref.empty()) {
-//                    cout << "stack_var!" << endl;
-//                    return;
-//                }
-                s += val.IntVal.toString(10, 0) + ";";
+                else {
+                    s += val.IntVal.toString(10, 0) + ";";
+                    if(ref1.startswith("stack_var") || ref1.startswith("pf") ||
+                       ref1.startswith("rsp") || ref1.startswith("zf") ||
+                       ref1.startswith("rbp") || ref1.startswith("sf") || ref1.startswith("arg") ||
+                       ref1.startswith("rdx") || ref1.startswith("of") || ref1.startswith("tmp") ||
+                       ref1.startswith("rsi") || ref1.startswith("cf") || ref1.startswith("r") ||
+                       ref1.startswith("rdi") || ref1.startswith("az") || ref1.startswith("rbx") ||
+                       ref1.startswith("rax") || ref1.startswith("rcx")) {
+                    }
+                    else{
+                        if (isa<ConstantExpr>(op1)){
+                            auto constExpr = dyn_cast<ConstantExpr>(op1);
+                            if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                                auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                                auto tmp1 = _globalEc.getGlobal(var);
+                                s += tmp1.IntVal.toString(10, 0) + ";";
+                            }
+                        }
+                        else if(ref1.empty()){}
+                        else{
+                            s += val1.IntVal.toString(10, 0) + ";";
+                        }
+
+                    }
+//                    I.dump();
+//                    cout << s << endl;
+                }
             }
             else
             {
@@ -3486,32 +3557,112 @@ break
                     return;
                 }
 
-                Value *op0 = I.getPointerOperand();
-                StringRef ref = I.getOperand(1)->getName();
+                Value *op0 = I.getOperand(0);
+                Value *op1 = I.getOperand(1);
+                StringRef ref = I.getOperand(0)->getName();
+                StringRef ref1 = I.getOperand(1)->getName();
                 if(ref.startswith("stack_var") || ref.startswith("pf") ||
                    ref.startswith("rsp") || ref.startswith("zf") ||
-                   ref.startswith("rbp") || ref.startswith("sf") ||
+                   ref.startswith("rbp") || ref.startswith("sf") || ref.startswith("arg") ||
                    ref.startswith("rdx") || ref.startswith("of") || ref.startswith("tmp") ||
                    ref.startswith("rsi") || ref.startswith("cf") || ref.startswith("r") ||
                    ref.startswith("rdi") || ref.startswith("az") || ref.startswith("rbx") ||
-                   ref.startswith("rax") || ref.startswith("rcx") || isNum(ref.str())) {
-                    return;
-                }
-                else if (isa<ConstantExpr>(op0)){
-                    auto constExpr = dyn_cast<ConstantExpr>(op0);
-                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
-                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
-                        auto val1 = _globalEc.getGlobal(var);
-//                        s += val.IntVal.toString(10, 0) + ";";
+                   ref.startswith("rax") || ref.startswith("rcx")) {
+                    if(ref1.startswith("stack_var") || ref1.startswith("pf") ||
+                       ref1.startswith("rsp") || ref1.startswith("zf") ||
+                       ref1.startswith("rbp") || ref1.startswith("sf") || ref1.startswith("arg") ||
+                       ref1.startswith("rdx") || ref1.startswith("of") || ref1.startswith("tmp") ||
+                       ref1.startswith("rsi") || ref1.startswith("cf") || ref1.startswith("r") ||
+                       ref1.startswith("rdi") || ref1.startswith("az") || ref1.startswith("rbx") ||
+                       ref1.startswith("rax") || ref1.startswith("rcx")) {
+                        return;
+                    }
+                    else{
+                        if (isa<ConstantExpr>(op1)){
+                            auto constExpr = dyn_cast<ConstantExpr>(op1);
+                            if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                                auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                                auto tmp1 = _globalEc.getGlobal(var);
+                                s += tmp1.IntVal.toString(10, 0) + ";";
+//                                I.dump();
+                                return;
+                            }
+                        }
+                        else if(ref1.empty()){return;}
+//                        cout << "c" << endl;
                         s += val1.IntVal.toString(10, 0) + ";";
+//                        I.dump();
+//                        cout << s << endl;
                         return;
                     }
                 }
-                else if(ref.empty()) {
-                    return;
+                else if (isa<ConstantExpr>(op0)){
+//                    cout << "d" << endl;
+                    auto constExpr = dyn_cast<ConstantExpr>(op0);
+                    if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                        auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                        auto val2 = _globalEc.getGlobal(var);
+//                        s += val.IntVal.toString(10, 0) + ";";
+                        s += val2.IntVal.toString(10, 0) + ";";
+                        _globalEc.setGlobal(gv, val2);
+//                        val = val1;
+                    }
+                    if(ref1.startswith("stack_var") || ref1.startswith("pf") ||
+                       ref1.startswith("rsp") || ref1.startswith("zf") ||
+                       ref1.startswith("rbp") || ref1.startswith("sf") || ref1.startswith("arg") ||
+                       ref1.startswith("rdx") || ref1.startswith("of") || ref1.startswith("tmp") ||
+                       ref1.startswith("rsi") || ref1.startswith("cf") || ref1.startswith("r") ||
+                       ref1.startswith("rdi") || ref1.startswith("az") || ref1.startswith("rbx") ||
+                       ref1.startswith("rax") || ref1.startswith("rcx")) {
+                    }
+                    else{
+                        if (isa<ConstantExpr>(op1)){
+//                            cout << "f" << endl;
+                            auto constExpr = dyn_cast<ConstantExpr>(op1);
+                            if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                                auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                                auto tmp1 = _globalEc.getGlobal(var);
+                                s += tmp1.IntVal.toString(10, 0) + ";";
+                            }
+                        }
+                        else if(ref1.empty()){}
+                        else {
+//                            cout << "g" << endl;
+                            s += val1.IntVal.toString(10, 0) + ";";
+                        }
+                    }
+//                    I.dump();
+//                    cout << s << endl;
                 }
-
-                s += val.IntVal.toString(10, 0) +  ";";
+                else {
+                    s += val.IntVal.toString(10, 0) + ";";
+                    if(ref1.startswith("stack_var") || ref1.startswith("pf") ||
+                       ref1.startswith("rsp") || ref1.startswith("zf") ||
+                       ref1.startswith("rbp") || ref1.startswith("sf") || ref1.startswith("arg") ||
+                       ref1.startswith("rdx") || ref1.startswith("of") || ref1.startswith("tmp") ||
+                       ref1.startswith("rsi") || ref1.startswith("cf") || ref1.startswith("r") ||
+                       ref1.startswith("rdi") || ref1.startswith("az") || ref1.startswith("rbx") ||
+                       ref1.startswith("rax") || ref1.startswith("rcx")) {
+                    }
+                    else{
+                        if (isa<ConstantExpr>(op1)){
+//                            cout << "i" << endl;
+                            auto constExpr = dyn_cast<ConstantExpr>(op1);
+                            if (isa<GlobalVariable>(constExpr->getOperand(0))) {
+                                auto var = dyn_cast<GlobalVariable>(constExpr->getOperand(0));
+                                auto tmp1 = _globalEc.getGlobal(var);
+                                s += tmp1.IntVal.toString(10, 0) + ";";
+                            }
+                        }
+                        else if(ref1.empty()){}
+                        else {
+//                            cout << "j" << endl;
+                            s += val1.IntVal.toString(10, 0) + ";";
+                        }
+                    }
+//                    I.dump();
+//                    cout << s << endl;
+                }
             }
         }
 
@@ -3686,6 +3837,9 @@ break
         {
             LocalExecutionContext& ec = _ecStack.back();
             auto* cf = I.getCalledFunction();
+            if (cf && cf->isDeclaration() && !cf->isIntrinsic()) {
+                this->s += I.getCalledFunction()->getName().str() + ";";
+            }
             if (cf && cf->isDeclaration() && cf->isIntrinsic() &&
                 !( cf->getIntrinsicID() == Intrinsic::mips_bitrev //bitreverse
                    || cf->getIntrinsicID() == Intrinsic::xcore_bitrev// **** ConstantInt::get(Ty->getContext(), Op->getValue().reverseBits()
@@ -3720,6 +3874,7 @@ break
                 return;
             }
 
+
             CallEntry ce;
             ce.calledValue = I.getCalledValue();
 //            CallSite cs(&I);
@@ -3730,12 +3885,15 @@ break
                 if (cf->arg_empty()) {
                     llvm::ArrayRef<llvm::GenericValue> argVals;
                     _globalEc.setValue(&I, runFunction(cf));
+                    this->s += "null;";
                 }
                 else {
                     int size = cf->arg_size();
                     llvm::GenericValue* args = new llvm::GenericValue[size];
+//                    cout << size << "size" << endl;
                     for(int index = 0; index < size; index++) {
                         args[index] = _globalEc.getOperandValue(I.getOperand(index), ec);
+//                        this->s += args[index].IntVal.toString(10, 0) + ";";
                     }
                     ArrayRef<GenericValue> argVals(args, size);
                     GenericValue res = runFunction(cf, argVals);
@@ -3744,6 +3902,7 @@ break
             }
             else {
                 GenericValue res;
+//                this->s += I.getCalledFunction()->getName().str() + ";";
                 if(cf && cf->getReturnType()->isIntegerTy()) {
                     const DataLayout *DL = _module->getDataLayout();
                     res.IntVal = res.IntVal.sextOrTrunc(DL->getTypeSizeInBits(cf->getReturnType()));
